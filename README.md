@@ -1,6 +1,6 @@
-# Wikka
+#VIKKA
 Wikka – Team software development project
-# Wikka
+
 
 **Smart Reuse, Resale & Rental Marketplace**
 
