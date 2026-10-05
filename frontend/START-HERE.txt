@@ -1,0 +1,11 @@
+VIKKA complete frontend - illustrated carton update
+
+1. Extract this ZIP in your Vikka project folder. It contains one frontend folder.
+2. Open Command Prompt in the new frontend folder.
+3. Run: npm install
+4. Run: npm run dev
+5. Refresh the Local URL shown by Vite (normally http://localhost:8443/).
+
+The campus and foreground illustration assets are in frontend/src/assets.
+The carton moves with a contact shadow and a subtle grounded tilt. The four brand phrases appear one by one on its front face. This 11-second sequence runs even if the browser reports a reduced-motion preference.
+If port 8443 is in use, stop the old dev server with Ctrl+C.
