@@ -1,0 +1,10 @@
+{
+  "description": "This platform offers a seamless experience for students and administrators, featuring interactive flows, responsive design, and a modern visual identity for enhanced usability.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
