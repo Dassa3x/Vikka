@@ -1,7 +1,7 @@
 import { CSSProperties, FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import handoffPusher from "./assets/handoff-pusher.png";
 import handoffReceiver from "./assets/handoff-receiver.png";
-import handoffCarton from "./assets/handoff-carton-illustrated.png";
+import handoffCarton from "./assets/handoff-carton.png";
 
 type Page = "home" | "browse" | "detail" | "auth" | "dashboard" | "post" | "admin" | "info";
 type ListingType = "Rent" | "Sell" | "Exchange" | "Donate";

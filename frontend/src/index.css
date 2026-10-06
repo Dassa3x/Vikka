@@ -628,7 +628,7 @@ section.handoff {
 }
 
 .handoff-scene {
-  --handoff-box: clamp(200px, 22vw, 260px);
+  --handoff-box: clamp(235px, 27.12vw, 320px);
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 1;
@@ -684,7 +684,7 @@ section.handoff {
   z-index: 2;
   left: 20%;
   right: 18%;
-  bottom: 15%;
+  bottom: 12.7%;
   height: calc(var(--handoff-box) * .84);
   pointer-events: none;
 }
@@ -702,7 +702,7 @@ section.handoff {
 .handoff-carton-body {
   position: absolute;
   inset: 0;
-  transform-origin: 50% 80%;
+  transform-origin: 50% 53%;
   animation: handoff-roll 11s linear infinite;
   will-change: transform;
 }
@@ -712,31 +712,31 @@ section.handoff {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  filter: saturate(.88) drop-shadow(0 3px 3px rgba(52, 48, 34, .12));
+  filter: drop-shadow(1px 8px 5px rgba(50, 46, 31, .15));
 }
 
 .handoff-carton-shadow {
   position: absolute;
-  left: 11%;
-  bottom: -6px;
-  width: calc(var(--handoff-box) * .78);
-  height: 18px;
+  left: 1%;
+  bottom: 2%;
+  width: calc(var(--handoff-box) * .83);
+  height: 12px;
   border-radius: 50%;
-  background: radial-gradient(ellipse, rgba(37, 52, 30, .4) 0%, rgba(37, 52, 30, .18) 47%, transparent 77%);
-  filter: blur(6px);
+  background: rgba(47, 56, 37, .2);
+  filter: blur(8px);
   animation: handoff-shadow 11s linear infinite;
 }
 
 .handoff-box-labels {
   position: absolute;
-  top: 23%;
-  left: 22%;
-  width: 63%;
-  height: 59%;
+  top: 29%;
+  left: 34%;
+  width: 49%;
+  height: 51%;
   display: grid;
   place-items: center;
   transform-origin: center;
-  /* The lettering is printed on the carton and rocks with it. */
+  animation: handoff-counter-roll 11s linear infinite;
 }
 
 .handoff-box-copy {
@@ -812,59 +812,73 @@ section.handoff {
   97% { transform: translateX(0) rotate(0); }
 }
 @keyframes handoff-travel {
-  0%, 15% { left: 0; opacity: 1; }
-  31%, 38% { left: calc(33.333% - var(--handoff-box) * .33333); opacity: 1; }
-  54%, 61% { left: calc(66.666% - var(--handoff-box) * .66666); opacity: 1; }
-  77%, 94% { left: calc(100% - var(--handoff-box)); opacity: 1; }
+  0%, 12% { left: 0; opacity: 1; }
+  25%, 28% { left: calc(25% - var(--handoff-box) * .25); opacity: 1; }
+  46%, 49% { left: calc(50% - var(--handoff-box) * .5); opacity: 1; }
+  67%, 70% { left: calc(75% - var(--handoff-box) * .75); opacity: 1; }
+  88%, 94% { left: calc(100% - var(--handoff-box)); opacity: 1; }
   96% { left: calc(100% - var(--handoff-box)); opacity: 0; }
   97%, 99% { left: 0; opacity: 0; }
   100% { left: 0; opacity: 1; }
 }
 @keyframes handoff-roll {
-  0%, 15% { transform: translateY(0) rotate(0); }
-  22% { transform: translateY(-4px) rotate(-10deg); }
-  31%, 38% { transform: translateY(0) rotate(0); }
-  46% { transform: translateY(-4px) rotate(-10deg); }
-  54%, 61% { transform: translateY(0) rotate(0); }
-  69% { transform: translateY(-4px) rotate(-10deg); }
-  77%, 100% { transform: translateY(0) rotate(0); }
+  0%, 12% { transform: translateY(0) rotate(0); }
+  18% { transform: translateY(-30px) rotate(45deg); }
+  25%, 28% { transform: translateY(0) rotate(90deg); }
+  37% { transform: translateY(-30px) rotate(135deg); }
+  46%, 49% { transform: translateY(0) rotate(180deg); }
+  58% { transform: translateY(-30px) rotate(225deg); }
+  67%, 70% { transform: translateY(0) rotate(270deg); }
+  79% { transform: translateY(-30px) rotate(315deg); }
+  88%, 100% { transform: translateY(0) rotate(360deg); }
+}
+@keyframes handoff-counter-roll {
+  0%, 12% { transform: rotate(0); }
+  18% { transform: rotate(-45deg); }
+  25%, 28% { transform: rotate(-90deg); }
+  37% { transform: rotate(-135deg); }
+  46%, 49% { transform: rotate(-180deg); }
+  58% { transform: rotate(-225deg); }
+  67%, 70% { transform: rotate(-270deg); }
+  79% { transform: rotate(-315deg); }
+  88%, 100% { transform: rotate(-360deg); }
 }
 @keyframes handoff-shadow {
-  0%, 15%, 31%, 38%, 54%, 61%, 77%, 100% { transform: scaleX(1); opacity: .75; }
-  22%, 46%, 69% { transform: scaleX(.92); opacity: .55; }
+  0%, 12%, 25%, 28%, 46%, 49%, 67%, 70%, 88%, 100% { transform: translateX(0) scaleX(1); opacity: .8; }
+  18%, 37%, 58%, 79% { transform: translateX(0) scaleX(.8); opacity: .4; }
 }
 @keyframes handoff-discover {
-  0%, 17% { opacity: 1; transform: scale(1); }
-  24%, 99% { opacity: 0; transform: scale(.95); }
+  0%, 24% { opacity: 1; transform: scale(1); }
+  27%, 99% { opacity: 0; transform: scale(.94); }
   100% { opacity: 1; transform: scale(1); }
 }
 @keyframes handoff-own {
-  0%, 25% { opacity: 0; transform: scale(.95); }
-  30%, 39% { opacity: 1; transform: scale(1); }
-  45%, 100% { opacity: 0; transform: scale(.95); }
+  0%, 25% { opacity: 0; transform: scale(.94); }
+  28%, 47% { opacity: 1; transform: scale(1); }
+  50%, 100% { opacity: 0; transform: scale(.94); }
 }
 @keyframes handoff-last {
-  0%, 48% { opacity: 0; transform: scale(.95); }
-  53%, 62% { opacity: 1; transform: scale(1); }
-  68%, 100% { opacity: 0; transform: scale(.95); }
+  0%, 47% { opacity: 0; transform: scale(.94); }
+  50%, 68% { opacity: 1; transform: scale(1); }
+  71%, 100% { opacity: 0; transform: scale(.94); }
 }
 @keyframes handoff-pass {
-  0%, 71% { opacity: 0; transform: scale(.95); }
-  76%, 94% { opacity: 1; transform: scale(1); }
-  97%, 100% { opacity: 0; transform: scale(.95); }
+  0%, 69% { opacity: 0; transform: scale(.94); }
+  72%, 95% { opacity: 1; transform: scale(1); }
+  97%, 100% { opacity: 0; transform: scale(.94); }
 }
 @keyframes handoff-spark {
-  0%, 84% { opacity: 0; transform: translateY(5px) scale(.2); }
-  88% { opacity: 1; transform: translateY(-7px) scale(1); }
-  96%, 100% { opacity: 0; transform: translateY(-19px) scale(.7); }
+  0%, 88% { opacity: 0; transform: translateY(5px) scale(.2); }
+  91% { opacity: 1; transform: translateY(-7px) scale(1); }
+  97%, 100% { opacity: 0; transform: translateY(-19px) scale(.7); }
 }
 
 @media (max-width: 640px) {
   section.handoff { width: calc(100% - 20px); border-radius: 18px; margin-bottom: 25px; }
-  .handoff-scene { --handoff-box: clamp(100px, 30vw, 150px); aspect-ratio: 1.85 / 1; min-height: 205px; max-height: 260px; background-size: auto 100%; }
+  .handoff-scene { --handoff-box: clamp(105px, 34vw, 170px); aspect-ratio: 1.85 / 1; min-height: 205px; max-height: 260px; background-size: auto 100%; }
   .handoff-pusher { width: 29%; left: 0; bottom: 14%; }
   .handoff-receiver { width: 26%; right: 0; bottom: 14%; }
-  .handoff-track { left: 22%; right: 15%; bottom: 14%; }
+  .handoff-track { left: 22%; right: 15%; bottom: 13%; }
   .handoff-box-copy { gap: 3px; }
   .handoff-box-copy small { font-size: 5px; padding: 2px 4px; }
   .handoff-box-copy strong { font-size: clamp(8px, 2.4vw, 11px); }
@@ -877,6 +891,7 @@ section.handoff {
   .handoff .handoff-receiver,
   .handoff .handoff-carton,
   .handoff .handoff-carton-body,
+  .handoff .handoff-box-labels,
   .handoff .handoff-box-copy,
   .handoff .handoff-carton-shadow,
   .handoff .handoff-celebrate span {
