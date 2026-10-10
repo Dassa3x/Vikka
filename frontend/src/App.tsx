@@ -1,7 +1,8 @@
 import { CSSProperties, FormEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import handoffPusher from "./assets/handoff-pusher.png";
 import handoffReceiver from "./assets/handoff-receiver.png";
-import handoffCarton from "./assets/handoff-carton.png";
+import handoffCarton from "./assets/handoff-carton-illustrated.png";
+import heroCampus from "./assets/vikka-hero-campus.webp";
 
 type Page = "home" | "browse" | "detail" | "auth" | "dashboard" | "post" | "admin" | "info";
 type ListingType = "Rent" | "Sell" | "Exchange" | "Donate";
@@ -68,6 +69,15 @@ const Icon = ({ name, size = 20 }: { name: string; size?: number }) => {
     sports: <><circle cx="12" cy="12" r="9" /><path d="m8.5 4.8 1.2 3.7L6.5 11l-3.3-.4M15.5 4.8l-1.2 3.7 3.2 2.5 3.3-.4M9.7 8.5h4.6l1.5 4.4-3.8 2.7-3.8-2.7 1.5-4.4ZM12 15.6V21M5.1 17.8l3.1-4.9M18.9 17.8l-3.1-4.9" /></>,
     art: <><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z" /><path d="m13.8 7.7 2.5 2.5M4 20l3-3" /></>,
     furniture: <><path d="M6 12V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v6M4 11v7h16v-7M7 18v3M17 18v3M4 14h16" /></>,
+    listings: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></>,
+sent: <><path d="m3 11 18-8-8 18-2.5-7.5L3 11Z" /><path d="m10.5 13.5 5-5" /></>,
+received: <><path d="M4 13v6h16v-6M12 3v12m0 0-4-4m4 4 4-4" /></>,
+rentals: <><rect x="3" y="7" width="18" height="14" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18" /></>,
+purchases: <><path d="M3 5h2l2 11h11l2-8H6M9 21h.01M17 21h.01" /></>,
+exchange: <><path d="M4 7h16m0 0-4-4m4 4-4 4M20 17H4m0 0 4-4m-4 4 4 4" /></>,
+donation: <><path d="M4 11h16v10H4zM3 7h18v4H3zM12 7v14M12 7C6 7 6 3 9 3c2 0 3 4 3 4Zm0 0c6 0 6-4 3-4-2 0-3 4-3 4Z" /></>,
+reviews: <><path d="M4 4h16v13H9l-5 4V4Z" /><path d="m12 7 1 2 2 .3-1.5 1.5.4 2.2-1.9-1-1.9 1 .4-2.2L9 9.3l2-.3 1-2Z" /></>,
+settings: <><path d="M4 6h16M4 12h16M4 18h16" /><circle cx="9" cy="6" r="2" fill="white" /><circle cx="16" cy="12" r="2" fill="white" /><circle cx="10" cy="18" r="2" fill="white" /></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] ?? paths.arrow}</svg>;
 };
@@ -186,12 +196,36 @@ function Home({ navigate, openBrowse, openItem }: { navigate: (p: Page, state?: 
     observer.observe(section);
     return () => observer.disconnect();
   }, []);
-  const ways = [
-    { name: "Rent", tab: "Rent", icon: "calendar", copy: "Borrow what you need", className: "way-rent" },
-    { name: "Buy", tab: "Buy", icon: "grid", copy: "Find it for less", className: "way-buy" },
-    { name: "Exchange", tab: "Exchange", icon: "arrow", copy: "Trade with students", className: "way-exchange" },
-    { name: "Donate", tab: "Donate", icon: "heart", copy: "Pass it forward", className: "way-donate" },
-  ];
+ const ways = [
+  {
+    name: "Rent",
+    tab: "Rent",
+    icon: "calendar",
+    copy: "Use it for the days you need.",
+    className: "way-rent",
+  },
+  {
+    name: "Buy",
+    tab: "Buy",
+    icon: "grid",
+    copy: "Make it yours for less.",
+    className: "way-buy",
+  },
+  {
+    name: "Exchange",
+    tab: "Exchange",
+    icon: "exchange",
+    copy: "Trade what you have.",
+    className: "way-exchange",
+  },
+  {
+    name: "Donate",
+    tab: "Donate",
+    icon: "heart",
+    copy: "Pass it to someone who needs it.",
+    className: "way-donate",
+  },
+];
   return <main>
     <section className="hero section">
       <div className="hero-copy reveal">
@@ -206,7 +240,11 @@ function Home({ navigate, openBrowse, openItem }: { navigate: (p: Page, state?: 
       </div>
       <div className="hero-collage reveal delay">
         <div className="collage-float collage-main-wrap">
-          <img src={photos.camera} alt="Camera available to rent" className="collage-main" />
+          <img
+                src={heroCampus}
+                alt="Student books, calculator, camera and a reusable bag"
+                    className="collage-main"
+            />
         </div>
         
         <div className="collage-float collage-small-wrap top">
@@ -249,12 +287,34 @@ function Home({ navigate, openBrowse, openItem }: { navigate: (p: Page, state?: 
     <section ref={waysRef} className={`section quick-section ${waysVisible ? "is-visible" : ""}`}>
       <div className="section-heading"><div><span className="eyebrow">Choose your way</span><h2>More useful. Less wasteful.</h2></div><p>One trusted place for every kind of campus exchange.</p></div>
       <div className="way-grid">
-        {ways.map((way, index) => <button className={`way-card ${way.className}`} style={{ "--way-index": index } as CSSProperties} key={way.name} onClick={() => openBrowse(way.tab)}>
-          <span className="way-icon"><Icon name={way.icon} /></span>
-          <span className="way-copy"><strong>{way.name}</strong><small>{way.copy}</small></span>
-          <span className="way-arrow"><Icon name="arrow" /></span>
-        </button>)}
-      </div>
+  {ways.map((way, index) => (
+    <button
+      type="button"
+      className={`way-card ${way.className}`}
+      style={{ "--way-index": index } as CSSProperties}
+      key={way.name}
+      onClick={() => openBrowse(way.tab)}
+      aria-label={`Explore ${way.name.toLowerCase()} listings`}
+    >
+      <span className="way-top">
+        <span className="way-number">0{index + 1} / 04</span>
+        <span className="way-icon">
+          <Icon name={way.icon} size={22} />
+        </span>
+      </span>
+
+      <span className="way-copy">
+        <strong>{way.name}</strong>
+        <small>{way.copy}</small>
+      </span>
+
+      <span className="way-footer">
+        <span>Explore {way.name.toLowerCase()}</span>
+        <span className="way-arrow" aria-hidden="true">↗</span>
+      </span>
+    </button>
+  ))}
+</div>
     </section>
 
     <section className="section">
@@ -263,16 +323,58 @@ function Home({ navigate, openBrowse, openItem }: { navigate: (p: Page, state?: 
     </section>
 
     <section className="trust-band">
-      <div className="section trust-inner">
-        <div><Badge tone="light">Trust is part of the design</Badge><h2>Your details aren’t part of the listing.</h2><p>Only verified student accounts can make requests. Phone numbers are revealed only after a request is accepted—never before.</p><Button variant="secondary" onClick={() => navigate("info", { infoTitle: "Safety on Vikka.lk" })}>Read our safety guide</Button></div>
-        <div className="trust-points">{[
-          ["shield", "Verified CINEC accounts", "Student email verification keeps the community campus-only."],
-          ["check", "Admin-approved listings", "Every new listing is reviewed before it appears publicly."],
-          ["star", "Ratings after real exchanges", "Build trust through completed campus transactions."],
-          ["user", "Private by default", "Registration numbers and phone numbers are never public."],
-        ].map(([icon, title, copy]) => <div key={title}><span><Icon name={icon} /></span><section><strong>{title}</strong><p>{copy}</p></section></div>)}</div>
-      </div>
-    </section>
+  <div className="section trust-inner">
+    <div className="trust-copy">
+      <Badge tone="light">Your safety matters</Badge>
+      <h2>Share items.<br />Keep your details private.</h2>
+      <p>
+        Students can browse freely. Only verified accounts can send
+        requests. Your phone number is shared after you accept a request.
+      </p>
+      <Button
+        variant="secondary"
+        onClick={() =>
+          navigate("info", { infoTitle: "Safety on Vikka.lk" })
+        }
+      >
+        See how safety works <Icon name="arrow" size={17} />
+      </Button>
+    </div>
+
+    <div className="trust-points">
+      {[
+        [
+          "shield",
+          "Student-only requests",
+          "A verified student account is required to contact an owner.",
+        ],
+        [
+          "check",
+          "Reviewed listings",
+          "New items are checked before they appear in search.",
+        ],
+        [
+          "star",
+          "Reviews after exchange",
+          "Feedback comes after a completed transaction.",
+        ],
+        [
+          "user",
+          "Contact stays private",
+          "Phone numbers stay hidden until a request is accepted.",
+        ],
+      ].map(([icon, title, copy]) => (
+        <div className="trust-point" key={title}>
+          <span><Icon name={icon} /></span>
+          <section>
+            <strong>{title}</strong>
+            <p>{copy}</p>
+          </section>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
 
     <section className="section how-section" id="how"><div className="section-heading"><div><span className="eyebrow">Simple from start to finish</span><h2>How Vikka works</h2></div></div>
       <div className="steps">{["Find or post an item", "Send or review a request", "Connect after acceptance", "Complete and leave a rating"].map((s, i) => <div key={s}><span>{i + 1}</span><strong>{s}</strong><p>{["Browse approved listings or create one of your own.", "Choose dates, guarantees, or send a short message.", "Contact details stay hidden until both sides agree.", "Confirm the handover and help the community build trust."][i]}</p></div>)}</div>
@@ -382,35 +484,350 @@ function Rating({ title, onDone }: { title: string; onDone: () => void }) {
 
 function AuthFlow({ done, mode, setMode, goBack, onHome }: { done: () => void; mode: AuthMode; setMode: (mode: AuthMode) => void; goBack: () => void; onHome: () => void }) {
   const [step, setStep] = useState(1); const [error, setError] = useState("");
+  const backLabel =
+  mode === "forgot" || mode === "sent"
+    ? "Log in"
+    : mode === "register" && step > 1
+      ? "Previous step"
+      : "Back";
+
+const handleAuthBack = () => {
+  if (mode === "forgot" || mode === "sent") {
+    setMode("login");
+  } else if (mode === "register" && step > 1) {
+    setStep(step - 1);
+  } else {
+    goBack();
+  }
+};
   const submitEmail = (e: FormEvent) => { e.preventDefault(); const value = (new FormData(e.currentTarget as HTMLFormElement).get("email") as string); if (!value.endsWith("@student.cinec.edu")) setError("Use your CINEC student email ending in @student.cinec.edu"); else { setError(""); setStep(2); } };
   const authPanel = mode === "login" ? <><span className="step-label">Welcome back</span><h2>Log in to Vikka</h2><p>New to the marketplace? <button className="text-link" onClick={()=>setMode("register")}>Create an account</button></p><div className="form-stack"><label>Student email or registration number<input placeholder="Email or registration number"/></label><label>Password<input type="password" placeholder="Your password"/></label><div className="form-between"><label className="check-row"><input type="checkbox"/>Remember me</label><button className="text-link" onClick={()=>setMode("forgot")}>Forgot password?</button></div><Button className="full" onClick={done}>Log in</Button><div className="form-note"><Icon name="shield"/><span>Only verified CINEC student accounts can send requests or post items.</span></div></div></>
-    : mode === "forgot" ? <><span className="step-label">Account recovery</span><h2>Reset your password</h2><p>Enter your verified student or recovery email. We’ll send a secure reset link.</p><div className="form-stack"><label>Email address<input placeholder="name@student.cinec.edu"/></label><Button className="full" onClick={()=>setMode("sent")}>Send reset link</Button><Button variant="ghost" className="full" onClick={()=>setMode("login")}>Back to log in</Button></div></>
+    : mode === "forgot" ? <><span className="step-label">Account recovery</span><h2>Reset your password</h2><p>Enter your verified student or recovery email. We’ll send a secure reset link.</p><div className="form-stack"><label>Email address<input placeholder="name@student.cinec.edu"/></label><Button className="full" onClick={()=>setMode("sent")}>Send reset link</Button></div></>
     : mode === "sent" ? <Success icon="check" title="Check your email" copy="If the address matches an active account, a password reset link has been sent."><Button onClick={()=>setMode("login")}>Return to log in</Button></Success>
     : null;
-  return <main className="auth-page"><div className="auth-art"><Brand onClick={onHome} /><div><Badge tone="light">Verified campus community</Badge><h1>Start your next campus exchange.</h1><p>Useful things, trusted people, and a little less waste.</p></div><div className="auth-photo"><img src={photos.desk} alt="Student study essentials" /></div></div><div className="auth-panel">
-    <button className="back-link auth-back" onClick={goBack}>← Back</button>
-    {authPanel || <>{step === 1 && <><span className="step-label">Registration · 1 of 3</span><h2>Create your student account</h2><p>Already a member? <button className="text-link" onClick={()=>setMode("login")}>Log in</button></p><form onSubmit={submitEmail} className="form-stack"><label>Full name<input required placeholder="Your full name" /></label><label>Student registration number<input required placeholder="CINEC registration number" /></label><label>CINEC student email<input name="email" required placeholder="name@student.cinec.edu" aria-invalid={!!error} />{error && <small className="error-text">{error}</small>}</label><div className="split-fields"><label>Password<input required type="password" placeholder="At least 8 characters" /></label><label>Confirm password<input required type="password" placeholder="Repeat password" /></label></div><small className="password-guide">Use 8+ characters with an uppercase letter, number and symbol.</small><label className="check-row"><input type="checkbox" required />I agree to the Terms and Privacy Policy.</label><Button type="submit" className="full">Continue to verification <Icon name="arrow" /></Button></form><div className="form-note"><Icon name="shield" /><span>Your registration number is unique and visible only to authorised admins.</span></div></>}
-    {step === 2 && <div className="verification"><span className="mail-icon">@</span><span className="step-label">Registration · 2 of 3</span><h2>Check your student email</h2><p>We sent a six-digit code to <strong>nethmi@student.cinec.edu</strong></p><div className="code-inputs">{[0,1,2,3,4,5].map((x)=><input key={x} maxLength={1} defaultValue={x<5?String([4,8,2,1,9][x]):""} aria-label={`Digit ${x+1}`} />)}</div><Button className="full" onClick={()=>setStep(3)}>Verify email</Button><p className="resend">Resend code in 00:24</p></div>}
-    {step === 3 && <><span className="step-label">Registration · 3 of 3</span><h2>Finish your profile</h2><p>Only your general area is shown publicly.</p><div className="form-stack"><label>Current area<select><option>Malabe</option><option>Kaduwela</option><option>CINEC Hostel</option><option>Millennium City</option></select></label><label>Contact number<input placeholder="07X XXX XXXX" /><small>Hidden until a request is accepted.</small></label><label>Optional profile picture<div className="upload-zone"><Icon name="upload" /><span><strong>Choose a photo</strong> or drag it here</span></div></label><Button className="full" onClick={done}>Complete profile</Button></div></>}</>}
-  </div></main>;
+  return (
+  <main className="auth-page">
+    <div className="auth-art">
+      <Brand onClick={onHome} />
+      <div>
+        <Badge tone="light">Verified campus community</Badge>
+        <h1>Start your next campus exchange.</h1>
+        <p>Useful things, trusted people, and a little less waste.</p>
+      </div>
+      <div className="auth-photo">
+        <img src={photos.desk} alt="Student study essentials" />
+      </div>
+    </div>
+
+    <div className="auth-panel">
+      <div className="auth-back-row">
+        <button type="button" className="auth-back-link" onClick={handleAuthBack}>
+          <span aria-hidden="true">←</span>
+          {backLabel}
+        </button>
+      </div>
+
+      {authPanel || (
+        <>
+          {step === 1 && (
+            <>
+              <span className="step-label">Registration · 1 of 3</span>
+              <h2>Create your student account</h2>
+              <p>Already a member? <button className="text-link" onClick={() => setMode("login")}>Log in</button></p>
+              <form onSubmit={submitEmail} className="form-stack">
+                <label>Full name<input required placeholder="Your full name" /></label>
+                <label>Student registration number<input required placeholder="CINEC registration number" /></label>
+                <label>
+                  CINEC student email
+                  <input name="email" required placeholder="name@student.cinec.edu" aria-invalid={!!error} />
+                  {error && <small className="error-text">{error}</small>}
+                </label>
+                <div className="split-fields">
+                  <label>Password<input required type="password" placeholder="At least 8 characters" /></label>
+                  <label>Confirm password<input required type="password" placeholder="Repeat password" /></label>
+                </div>
+                <small className="password-guide">Use 8+ characters with an uppercase letter, number and symbol.</small>
+                <label className="check-row"><input type="checkbox" required />I agree to the Terms and Privacy Policy.</label>
+                <Button type="submit" className="full">Continue to verification <Icon name="arrow" /></Button>
+              </form>
+              <div className="form-note"><Icon name="shield" /><span>Your registration number is unique and visible only to authorised admins.</span></div>
+            </>
+          )}
+
+          {step === 2 && (
+            <div className="verification">
+              <span className="mail-icon">@</span>
+              <span className="step-label">Registration · 2 of 3</span>
+              <h2>Check your student email</h2>
+              <p>We sent a six-digit code to <strong>nethmi@student.cinec.edu</strong></p>
+              <div className="code-inputs">
+                {[0, 1, 2, 3, 4, 5].map(x => (
+                  <input key={x} maxLength={1} defaultValue={x < 5 ? String([4, 8, 2, 1, 9][x]) : ""} aria-label={`Digit ${x + 1}`} />
+                ))}
+              </div>
+              <Button className="full" onClick={() => setStep(3)}>Verify email</Button>
+              <p className="resend">Resend code in 00:24</p>
+            </div>
+          )}
+
+          {step === 3 && (
+            <>
+              <span className="step-label">Registration · 3 of 3</span>
+              <h2>Finish your profile</h2>
+              <p>Only your general area is shown publicly.</p>
+              <div className="form-stack">
+                <label>Current area<select><option>Malabe</option><option>Kaduwela</option><option>CINEC Hostel</option><option>Millennium City</option></select></label>
+                <label>Contact number<input placeholder="07X XXX XXXX" /><small>Hidden until a request is accepted.</small></label>
+                <label>Optional profile picture<div className="upload-zone"><Icon name="upload" /><span><strong>Choose a photo</strong> or drag it here</span></div></label>
+                <Button className="full" onClick={done}>Complete profile</Button>
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  </main>
+);
 }
 
-const dashboardNav = ["Overview", "My Listings", "Requests Sent", "Requests Received", "Rental Bookings", "Purchases", "Exchange Offers", "Donation Requests", "Wishlist", "Reviews", "Notifications", "Account Settings"];
+const dashboardNav = [
+  {
+    title: "Workspace",
+    items: [
+      { label: "Overview", icon: "grid" },
+      { label: "My Listings", icon: "listings" },
+    ],
+  },
+  {
+    title: "Requests",
+    items: [
+      { label: "Requests Sent", icon: "sent" },
+      { label: "Requests Received", icon: "received" },
+    ],
+  },
+  {
+    title: "Activity",
+    items: [
+      { label: "Rental Bookings", icon: "rentals" },
+      { label: "Purchases", icon: "purchases" },
+      { label: "Exchange Offers", icon: "exchange" },
+      { label: "Donation Requests", icon: "donation" },
+    ],
+  },
+  {
+    title: "Your account",
+    items: [
+      { label: "Wishlist", icon: "heart" },
+      { label: "Reviews", icon: "reviews" },
+      { label: "Notifications", icon: "bell" },
+      { label: "Account Settings", icon: "settings" },
+    ],
+  },
+];
 
-function Dashboard({ section, navigate, onSection, onPost }: { section: string; navigate: (p: Page, state?: Partial<RouteState>) => void; onSection: (section: string) => void; onPost: () => void }) {
+function Dashboard({
+  section,
+  navigate,
+  onSection,
+  onPost,
+}: {
+  section: string;
+  navigate: (p: Page, state?: Partial<RouteState>) => void;
+  onSection: (section: string) => void;
+  onPost: () => void;
+}) {
   const [notice, setNotice] = useState("");
-  return <main className="portal"><aside className="portal-side"><Brand onClick={()=>navigate("home")} /><div className="portal-profile"><span className="avatar">NS</span><div><strong>Nethmi Silva</strong><small>Verified student</small></div></div><nav>{dashboardNav.map(n=><button className={section===n?"active":""} onClick={()=>onSection(n)} key={n}><Icon name={n==="Notifications"?"bell":n==="Wishlist"?"heart":n==="Overview"?"grid":"arrow"} />{n}{n==="Notifications"&&<b>3</b>}</button>)}</nav><Button variant="ghost" onClick={()=>navigate("home")}>← Back to marketplace</Button></aside>
-    <section className="portal-main"><div className="portal-top"><div><span className="eyebrow">Student workspace</span><h1>{section}</h1></div><Button onClick={onPost}><Icon name="plus"/> Post an item</Button></div>
-      {notice && <div className="toast-inline"><Icon name="check"/>{notice}</div>}
-      {section==="Overview" ? <Overview setListing={onPost} setSection={onSection} /> : section==="Notifications" ? <Notifications /> : section==="My Listings" ? <MyListings /> : section==="Account Settings" ? <AccountSettings /> : <RequestSection name={section} onAction={(x)=>setNotice(x)} />}
-    </section>
-  </main>;
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <main className="portal">
+      <aside className="portal-side">
+        <div className="portal-side-head">
+          <Brand onClick={() => navigate("home")} />
+          <button
+            type="button"
+            className="portal-menu-toggle"
+            aria-label={menuOpen ? "Close dashboard menu" : "Open dashboard menu"}
+            aria-expanded={menuOpen}
+            aria-controls="dashboard-navigation"
+            onClick={() => setMenuOpen(!menuOpen)}
+          >
+            <Icon name={menuOpen ? "close" : "menu"} />
+          </button>
+        </div>
+
+        <div
+          id="dashboard-navigation"
+          className={`portal-side-content ${menuOpen ? "is-open" : ""}`}
+        >
+          <div className="portal-profile">
+            <span className="avatar">NS</span>
+            <div>
+              <strong>Nethmi Silva</strong>
+              <small>Student account</small>
+            </div>
+          </div>
+
+          <nav aria-label="Dashboard navigation">
+            {dashboardNav.map((group) => (
+              <div className="portal-nav-group" key={group.title}>
+                <span className="portal-nav-title">{group.title}</span>
+
+                {group.items.map((item) => (
+                  <button
+                    type="button"
+                    key={item.label}
+                    className={section === item.label ? "active" : ""}
+                    aria-current={
+                      section === item.label ? "page" : undefined
+                    }
+                    onClick={() => {
+                      onSection(item.label);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <span className="portal-nav-icon">
+                      <Icon name={item.icon} size={18} />
+                    </span>
+                    <span>{item.label}</span>
+
+                    {item.label === "Notifications" && (
+                      <b className="portal-nav-count">3</b>
+                    )}
+                  </button>
+                ))}
+              </div>
+            ))}
+          </nav>
+
+          <button
+            type="button"
+            className="portal-back"
+            onClick={() => navigate("home")}
+          >
+            <span aria-hidden="true">←</span>
+            Back to marketplace
+          </button>
+        </div>
+      </aside>
+
+      <section className="portal-main">
+        <div className="portal-top">
+          <div>
+            <span className="eyebrow">Student workspace</span>
+            <h1>{section}</h1>
+          </div>
+          <Button onClick={onPost}>
+            <Icon name="plus" /> Post an item
+          </Button>
+        </div>
+
+        {notice && (
+          <div className="toast-inline">
+            <Icon name="check" />
+            {notice}
+          </div>
+        )}
+
+        {section === "Overview" ? (
+          <Overview setSection={onSection} />
+        ) : section === "Notifications" ? (
+          <Notifications />
+        ) : section === "My Listings" ? (
+          <MyListings />
+        ) : section === "Account Settings" ? (
+          <AccountSettings />
+        ) : (
+          <RequestSection
+            key={section}
+            name={section}
+            onAction={(message) => setNotice(message)}
+          />
+        )}
+      </section>
+    </main>
+  );
 }
 
-function Overview({ setListing, setSection }: { setListing:()=>void; setSection:(v:string)=>void }) {
-  return <><div className="welcome-card"><div><Badge tone="light">Good afternoon, Nethmi</Badge><h2>Ready to give something a second story?</h2><p>Your profile is verified. You can request items or post a listing for the campus community.</p><Button variant="secondary" onClick={setListing}>Create a listing</Button></div><img src={photos.headphones} alt="Campus marketplace items" /></div>
-  <div className="stat-grid">{[["Active listings","3","+1 this month"],["Pending requests","2","Needs attention"],["Upcoming returns","1","Due on Friday"],["Unread notifications","3","View updates"]].map(([a,b,c])=><button key={a} onClick={()=>a.includes("notification")&&setSection("Notifications")}><span>{a}</span><strong>{b}</strong><small>{c}</small></button>)}</div>
-  <div className="dashboard-columns"><section className="panel"><div className="panel-title"><h2>Recent activity</h2><button onClick={()=>setSection("Notifications")}>View all</button></div>{[["New rental request","Canon EOS camera · 10–12 Oct","12 min ago"],["Listing approved","Aluminium laptop stand","Yesterday"],["Return reminder","Tripod is due this Friday","2 days ago"]].map(x=><div className="activity" key={x[0]}><span><Icon name="bell"/></span><div><strong>{x[0]}</strong><p>{x[1]}</p></div><small>{x[2]}</small></div>)}</section><section className="panel"><div className="panel-title"><h2>Upcoming</h2></div><div className="upcoming"><Badge tone="warning">Return due</Badge><span>Friday, 16 October</span><h3>Manfrotto travel tripod</h3><p>Return to Amaya near CINEC Campus</p><Button variant="secondary" onClick={()=>setSection("Rental Bookings")}>View booking</Button></div></section></div></>;
+function Overview({ setSection }: { setSection: (v: string) => void }) {
+  const stats = [
+    ["Active listings", "3", "+1 this month"],
+    ["Pending requests", "2", "Needs attention"],
+    ["Upcoming returns", "1", "Due on Friday"],
+    ["Unread notifications", "3", "View updates"],
+  ];
+
+  const activity = [
+    ["New rental request", "Canon EOS camera · 10–12 Oct", "12 min ago"],
+    ["Listing approved", "Aluminium laptop stand", "Yesterday"],
+    ["Return reminder", "Tripod is due this Friday", "2 days ago"],
+  ];
+
+  return (
+    <>
+      <div className="stat-grid">
+        {stats.map(([title, value, note]) => (
+          <button
+            type="button"
+            key={title}
+           onClick={() => {
+                    if (title === "Active listings") setSection("My Listings");
+                    else if (title === "Pending requests") setSection("Requests Received");
+                    else if (title === "Upcoming returns") setSection("Rental Bookings");
+                    else if (title === "Unread notifications") setSection("Notifications");
+                    }}
+          >
+            <span>{title}</span>
+            <strong>{value}</strong>
+            <small>{note}</small>
+          </button>
+        ))}
+      </div>
+
+      <div className="dashboard-columns">
+        <section className="panel">
+          <div className="panel-title">
+            <h2>Recent activity</h2>
+            <button
+              type="button"
+              onClick={() => setSection("Notifications")}
+            >
+              View all
+            </button>
+          </div>
+
+          {activity.map(([title, description, time]) => (
+            <div className="activity" key={title}>
+              <span><Icon name="bell" /></span>
+              <div>
+                <strong>{title}</strong>
+                <p>{description}</p>
+              </div>
+              <small>{time}</small>
+            </div>
+          ))}
+        </section>
+
+        <section className="panel">
+          <div className="panel-title">
+            <h2>Upcoming</h2>
+          </div>
+          <div className="upcoming">
+            <Badge tone="warning">Return due</Badge>
+            <span>Friday, 16 October</span>
+            <h3>Manfrotto travel tripod</h3>
+            <p>Return to Amaya near CINEC Campus</p>
+            <Button
+              variant="secondary"
+              onClick={() => setSection("Rental Bookings")}
+            >
+              View booking
+            </Button>
+          </div>
+        </section>
+      </div>
+    </>
+  );
 }
 
 function Notifications() {
@@ -432,10 +849,240 @@ function AccountSettings() {
   return <div className="dashboard-columns"><section className="panel form-stack"><h2>Profile & privacy</h2><label>Full name<input defaultValue="Nethmi Silva" /></label><label>Current area<select><option>Malabe</option></select></label><label>Contact number<input defaultValue="071 ••• ••18" /><small>Shared only when a request is accepted.</small></label><label>Recovery email (optional)<input placeholder="Add a verified personal email" /></label><Button>Save changes</Button></section><section className="panel"><h2>Public profile preview</h2><div className="profile-preview"><span className="avatar avatar-lg">NS</span><h3>Nethmi Silva</h3><Badge tone="verified"><Icon name="check" size={12}/> Verified CINEC student</Badge><p>Malabe · ★ 4.8 (6 reviews)</p><p>5 completed transactions · Member since 2025</p></div><div className="privacy-note"><Icon name="shield"/><p>Your registration number, phone number, recovery email and sensitive details are never public.</p></div></section></div>;
 }
 
-function RequestSection({ name, onAction }: { name:string; onAction:(s:string)=>void }) {
-  const emptyNames = ["Exchange Offers","Donation Requests","Wishlist"];
-  if(emptyNames.includes(name)) return <div className="empty-state panel"><span><Icon name={name==="Wishlist"?"heart":"arrow"} size={30}/></span><h2>No {name.toLowerCase()} yet</h2><p>When you interact with a listing, it will appear here.</p></div>;
-  return <section className="panel"><div className="panel-title"><h2>{name}</h2><select><option>All statuses</option><option>Pending</option><option>Completed</option></select></div><div className="request-card"><img src={photos.camera} alt="Canon camera"/><div><Badge tone="warning">{name==="Reviews"?"Awaiting review":"Pending"}</Badge><h3>Canon EOS 80D camera kit</h3><p>10–12 October · 2 days · Rs. 1,500</p><small>Contact details hidden until acceptance</small></div><div className="request-actions"><Button onClick={()=>onAction(name==="Requests Received"?"Request accepted — contact details are now visible.":"Action saved in this prototype.")}>{name==="Requests Received"?"Accept":"View details"}</Button><Button variant="ghost">{name==="Requests Received"?"Reject":"Cancel request"}</Button></div></div><div className="status-strip">{["Pending","Accepted","Active","Return Due","Completed"].map((x,i)=><span className={i===0?"active":""} key={x}><i>{i+1}</i>{x}</span>)}</div></section>;
+function RequestSection({
+  name,
+  onAction,
+}: {
+  name: string;
+  onAction: (message: string) => void;
+}) {
+  const [filter, setFilter] = useState("All statuses");
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  const emptySections: Record<
+    string,
+    { icon: string; title: string; message: string }
+  > = {
+    "Exchange Offers": {
+      icon: "grid",
+      title: "No exchange offers yet",
+      message: "Offers you make or receive for an item will appear here.",
+    },
+    "Donation Requests": {
+      icon: "heart",
+      title: "No donation requests yet",
+      message: "Requests for items you donate will appear here.",
+    },
+    Wishlist: {
+      icon: "heart",
+      title: "Your wishlist is empty",
+      message: "Save items you like to find them here later.",
+    },
+    Reviews: {
+      icon: "star",
+      title: "No reviews yet",
+      message: "Reviews will appear here after completed exchanges.",
+    },
+  };
+
+  const sections: Record<
+    string,
+    {
+      title: string;
+      image: string;
+      imageAlt: string;
+      status: string;
+      summary: string;
+      note: string;
+      details: string;
+    }
+  > = {
+    "Requests Sent": {
+      title: "Canon EOS 80D camera kit",
+      image: photos.camera,
+      imageAlt: "Canon camera",
+      status: "Pending",
+      summary: "Rental request · 10–12 October · Rs. 1,500",
+      note: "Waiting for the owner to respond",
+      details:
+        "Your request has been sent. Contact details stay hidden until the owner accepts it.",
+    },
+    "Requests Received": {
+      title: "Aluminium laptop stand",
+      image: photos.laptop,
+      imageAlt: "Laptop stand",
+      status: "Pending",
+      summary: "Purchase request · Kasun Perera · Rs. 3,200",
+      note: "A student is waiting for your response",
+      details:
+        "Review this student's request before accepting or declining it.",
+    },
+    "Rental Bookings": {
+      title: "50mm portrait lens",
+      image: photos.lens,
+      imageAlt: "Portrait lens",
+      status: "Active",
+      summary: "14–16 October · Return due 16 October · Rs. 1,500",
+      note: "Rental in progress",
+      details:
+        "Agree on the handover and return arrangements with the owner.",
+    },
+    Purchases: {
+      title: "Casio scientific calculator",
+      image: photos.calculator,
+      imageAlt: "Scientific calculator",
+      status: "Completed",
+      summary: "Purchased on 8 October · Rs. 4,500",
+      note: "Purchase complete",
+      details:
+        "The purchase is complete. You can review the seller after handover.",
+    },
+  };
+
+  const item = sections[name];
+  const [status, setStatus] = useState(item?.status ?? "");
+
+  if (emptySections[name]) {
+    const content = emptySections[name];
+
+    return (
+      <div className="empty-state panel">
+        <span>
+          <Icon name={content.icon} size={30} />
+        </span>
+        <h2>{content.title}</h2>
+        <p>{content.message}</p>
+      </div>
+    );
+  }
+
+  if (!item) return null;
+
+  const changeStatus = (newStatus: string) => {
+    setStatus(newStatus);
+    onAction(`Demo: ${name.toLowerCase()} marked ${newStatus.toLowerCase()}.`);
+  };
+
+  const visible = filter === "All statuses" || filter === status;
+  const badgeTone =
+    status === "Pending"
+      ? "warning"
+      : ["Active", "Accepted", "Completed"].includes(status)
+        ? "success"
+        : "neutral";
+
+  const steps = [
+    "Pending",
+    "Accepted",
+    "Active",
+    "Return Due",
+    "Completed",
+  ];
+
+  return (
+    <section className="panel">
+      <div className="panel-title">
+        <h2>{name}</h2>
+
+        <select
+          aria-label={`Filter ${name} by status`}
+          value={filter}
+          onChange={(event) => setFilter(event.target.value)}
+        >
+          {[
+            "All statuses",
+            "Pending",
+            "Accepted",
+            "Active",
+            "Completed",
+            "Cancelled",
+            "Declined",
+          ].map((option) => (
+            <option key={option}>{option}</option>
+          ))}
+        </select>
+      </div>
+
+      {visible ? (
+        <>
+          <div className="request-card">
+            <img src={item.image} alt={item.imageAlt} />
+
+            <div>
+              <Badge tone={badgeTone}>{status}</Badge>
+              <h3>{item.title}</h3>
+              <p>{item.summary}</p>
+              <small>{item.note}</small>
+            </div>
+
+            <div className="request-actions">
+              {name === "Requests Received" && status === "Pending" ? (
+                <>
+                  <Button onClick={() => changeStatus("Accepted")}>
+                    Accept
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => changeStatus("Declined")}
+                  >
+                    Decline
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="secondary"
+                  onClick={() => setDetailsOpen(!detailsOpen)}
+                >
+                  {detailsOpen
+                    ? "Hide details"
+                    : name === "Rental Bookings"
+                      ? "View booking"
+                      : name === "Purchases"
+                        ? "View purchase"
+                        : "View request"}
+                </Button>
+              )}
+
+              {name === "Requests Sent" && status === "Pending" && (
+                <Button
+                  variant="ghost"
+                  onClick={() => changeStatus("Cancelled")}
+                >
+                  Cancel request
+                </Button>
+              )}
+            </div>
+          </div>
+
+          {detailsOpen && (
+            <p className="request-extra">{item.details}</p>
+          )}
+
+          {(name === "Requests Sent" ||
+            name === "Rental Bookings") &&
+            status !== "Cancelled" && (
+              <div className="status-strip">
+                {steps.map((step, index) => (
+                  <span
+                    className={
+                      index <= steps.indexOf(status) ? "active" : ""
+                    }
+                    key={step}
+                  >
+                    <i>{index + 1}</i>
+                    {step}
+                  </span>
+                ))}
+              </div>
+            )}
+        </>
+      ) : (
+        <div className="request-filter-empty">
+          No {name.toLowerCase()} with the status “{filter}”.
+        </div>
+      )}
+    </section>
+  );
 }
 
 function ListingWizard({ close }: { close:()=>void }) {
@@ -518,7 +1165,7 @@ export default function App() {
   if(page==="home")pageContent=<Home navigate={navigate} openBrowse={openBrowse} openItem={openItem}/>;
   else if(page==="browse")pageContent=<Browse openItem={openItem} state={browseState} setState={setBrowseState}/>;
   else if(page==="detail")pageContent=<Detail item={selected} onRequest={protectedAction} guestAction={()=>loggedIn?demoFeedback("Item saved to your wishlist."):setSignIn(true)} goBack={()=>goBack("browse")} navigate={navigate}/>;
-  else if(page==="auth")pageContent=<AuthFlow mode={route.authMode??"register"} setMode={(authMode)=>navigate("auth",{authMode})} goBack={()=>goBack("home")} onHome={()=>navigate("home")} done={()=>{setLoggedIn(true);navigate("dashboard",{dashboardSection:"Overview"})}}/>;
+ else if(page==="auth")pageContent=<AuthFlow mode={route.authMode??"register"} setMode={(authMode)=>setRoute(current=>({...current,authMode}))} goBack={()=>goBack("home")} onHome={()=>navigate("home")} done={()=>{setLoggedIn(true);navigate("dashboard",{dashboardSection:"Overview"})}}/>;
   else if(page==="dashboard")pageContent=<Dashboard section={route.dashboardSection??"Overview"} navigate={navigate} onSection={(dashboardSection)=>navigate("dashboard",{dashboardSection})} onPost={()=>navigate("post")}/>;
   else if(page==="post")pageContent=<ListingWizard close={()=>goBack("dashboard")}/>;
   else if(page==="admin")pageContent=<Admin navigate={navigate} section={route.adminSection??"Dashboard"} onSection={(adminSection)=>navigate("admin",{adminSection})}/>;
