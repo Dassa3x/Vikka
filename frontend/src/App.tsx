@@ -1138,9 +1138,66 @@ function Footer({navigate,openBrowse}:{navigate:(p:Page,state?:Partial<RouteStat
   return <footer><div className="section footer-grid"><div><Brand onClick={()=>navigate("home")}/><p>Rent. Sell. Exchange. Share.<br/>A trusted marketplace for campus life.</p></div><div><strong>Marketplace</strong>{["Browse","Rent","Buy","Exchange","Donate"].map(x=><button onClick={()=>openBrowse(x==="Browse"?"All":x)} key={x}>{x}</button>)}</div><div><strong>Support</strong>{["How it works","Safety","Help centre","Contact"].map(x=><button onClick={()=>x==="How it works"?(navigate("home"),window.setTimeout(()=>document.querySelector("#how")?.scrollIntoView(),0)):navigate("info",{infoTitle:x==="Safety"?"Safety on Vikka.lk":x})} key={x}>{x}</button>)}</div><div><strong>Legal</strong>{["Terms","Privacy","Prohibited items"].map(x=><button onClick={()=>navigate("info",{infoTitle:x})} key={x}>{x}</button>)}</div></div><div className="footer-bottom section"><span>© 2026 Vikka.lk · Interactive prototype</span><button onClick={()=>navigate("admin",{adminSection:"Dashboard"})}>Admin demo</button></div></footer>;
 }
 
+
+function VikkaLoadingScreen({ progress, message }: { progress: number; message: string }) {
+  return (
+    <div className="vikka-loader-inner" role="status" aria-live="polite" aria-label="Loading Vikka marketplace">
+      <div className="loader-orbit loader-orbit-one" aria-hidden="true" />
+      <div className="loader-orbit loader-orbit-two" aria-hidden="true" />
+      <div className="loader-card loader-card-left" aria-hidden="true">
+        <span className="loader-card-icon">↗</span>
+        <span className="loader-card-line loader-card-line-long" />
+        <span className="loader-card-line" />
+      </div>
+      <div className="loader-card loader-card-right" aria-hidden="true">
+        <span className="loader-heart">♡</span>
+        <span className="loader-card-line loader-card-line-long" />
+        <span className="loader-card-line" />
+      </div>
+
+      <div className="vikka-loader-content">
+        <div className="vikka-loader-brand" aria-label="Vikka dot lk">
+          <span className="vikka-loader-mark"><span /></span>
+          <span className="vikka-loader-word">Vikka<span>.lk</span></span>
+        </div>
+        <div className="loader-scene" aria-hidden="true">
+          <div className="loader-bag">
+            <span className="loader-bag-handle" />
+            <span className="loader-bag-logo">v.</span>
+            <span className="loader-bag-shine" />
+          </div>
+          <span className="loader-spark loader-spark-one">✦</span>
+          <span className="loader-spark loader-spark-two">✳</span>
+          <span className="loader-spark loader-spark-three">✦</span>
+          <span className="loader-ground" />
+        </div>
+        <p className="loader-eyebrow">YOUR CAMPUS MARKETPLACE</p>
+        <h1>Good things are<br /><em>on their way.</em></h1>
+        <p className="loader-message">{message}</p>
+        <div className="loader-progress-track" aria-hidden="true">
+          <span style={{ width: `${progress}%` }} />
+        </div>
+        <div className="loader-progress-meta">
+          <span>Getting Vikka ready</span>
+          <strong>{Math.round(progress)}%</strong>
+        </div>
+        <div className="loader-footer">
+          <span className="loader-pulse" />
+          <span>Rent · Sell · Exchange · Share</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const initialRoute: RouteState = window.history.state?.vikka ? window.history.state : { vikka:true, index:0, page:"home", browse:defaultBrowse };
   const [route,setRoute]=useState<RouteState>(initialRoute); const [browseState,setBrowseState]=useState<BrowseState>(initialRoute.browse ?? defaultBrowse); const [flow,setFlow]=useState<"rental"|"sale"|null>(null); const [loggedIn,setLoggedIn]=useState(false); const [signIn,setSignIn]=useState(false); const [feedback,setFeedback]=useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadingLeaving, setLoadingLeaving] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(8);
+  const [loadingMessage, setLoadingMessage] = useState("Warming up your campus marketplace...");
+
   const page=route.page; const selected=listings.find(item=>item.id===route.listingId) ?? listings[0];
   const navigate=useCallback((nextPage:Page, state:Partial<RouteState>={})=>{
     const next:RouteState={...route,...state,vikka:true,index:route.index+1,page:nextPage,browse:state.browse ?? browseState};
@@ -1158,6 +1215,76 @@ export default function App() {
     window.addEventListener("popstate",onPop); window.addEventListener("vikka:feedback",onFeedback);
     return()=>{window.removeEventListener("popstate",onPop);window.removeEventListener("vikka:feedback",onFeedback);};
   },[]);
+  useEffect(() => {
+    let cancelled = false;
+    let finished = false;
+    let messageIndex = 0;
+    const messages = [
+      "Warming up your campus marketplace...",
+      "Getting the good finds ready...",
+      "Making room for your next great find...",
+      "Almost there — setting everything in place..."
+    ];
+    const startedAt = Date.now();
+    const messageTimer = window.setInterval(() => {
+      messageIndex = (messageIndex + 1) % messages.length;
+      if (!cancelled) setLoadingMessage(messages[messageIndex]);
+    }, 1900);
+    const progressTimer = window.setInterval(() => {
+      if (!cancelled) setLoadingProgress((current) => Math.min(92, current + Math.max(1, (92 - current) * 0.12)));
+    }, 180);
+    const finish = () => {
+      if (cancelled || finished) return;
+      finished = true;
+      window.clearInterval(messageTimer);
+      window.clearInterval(progressTimer);
+      window.clearTimeout(fallback);
+      const remaining = Math.max(0, 1450 - (Date.now() - startedAt));
+      window.setTimeout(() => {
+        if (cancelled) return;
+        setLoadingProgress(100);
+        setLoadingMessage("All set. Welcome to Vikka!");
+        window.setTimeout(() => {
+          if (cancelled) return;
+          setLoadingLeaving(true);
+          window.setTimeout(() => { if (!cancelled) setLoading(false); }, 420);
+        }, 220);
+      }, remaining);
+    };
+
+    const waitForImage = (img: HTMLImageElement) => {
+      if (img.complete) {
+        return typeof img.decode === "function"
+          ? img.decode().catch(() => undefined)
+          : Promise.resolve();
+      }
+      return new Promise<void>((resolve) => {
+        const settle = () => resolve();
+        img.addEventListener("load", settle, { once: true });
+        img.addEventListener("error", settle, { once: true });
+      }).then(() => typeof img.decode === "function" ? img.decode().catch(() => undefined) : undefined);
+    };
+
+    const waitForAssets = async () => {
+      if (document.readyState !== "complete") {
+        await new Promise<void>((resolve) => window.addEventListener("load", () => resolve(), { once: true }));
+      }
+      const images = Array.from(document.images);
+      const imagePromises = images.map(waitForImage);
+      const fontsPromise = "fonts" in document ? document.fonts.ready.catch(() => undefined) : Promise.resolve();
+      await Promise.all([Promise.all(imagePromises), fontsPromise]);
+    };
+
+    const fallback = window.setTimeout(finish, 10000);
+    waitForAssets().then(finish).catch(finish);
+    return () => {
+      cancelled = true;
+      window.clearInterval(messageTimer);
+      window.clearInterval(progressTimer);
+      window.clearTimeout(fallback);
+    };
+  }, []);
+
   const openBrowse=(tab="All",category?:string)=>{const next={...browseState,tab:tab==="Buy"?"Buy":tab,category:category??browseState.category,empty:false};setBrowseState(next);navigate("browse",{browse:next});};
   const openItem=(item:typeof listings[number])=>navigate("detail",{listingId:item.id});
   const protectedAction=()=> loggedIn ? setFlow(selected.type==="Rent"?"rental":"sale") : setSignIn(true);
@@ -1172,6 +1299,7 @@ export default function App() {
   else pageContent=<InfoPage title={route.infoTitle??"About Vikka.lk"} goBack={()=>goBack("home")} navigate={navigate}/>;
   const standalone=page==="auth"||page==="dashboard"||page==="post"||page==="admin";
   return <div className="app">
+    {loading && <div className={loadingLeaving ? "vikka-loader is-leaving" : "vikka-loader"}><VikkaLoadingScreen progress={loadingProgress} message={loadingMessage} /></div>}
     {!standalone&&<Header navigate={navigate} openBrowse={openBrowse} loggedIn={loggedIn}/>}
     {pageContent}
     {!standalone&&<Footer navigate={navigate} openBrowse={openBrowse}/>}
