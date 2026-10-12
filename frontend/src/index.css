@@ -1595,3 +1595,23 @@ section.handoff {
     transition-duration: .01ms !important;
   }
 }
+=======
+.brand-logo { display: block; width: 150px; height: auto; }
+.brand-logo-light { display: none; }
+
+.auth-art .brand-logo-default,
+.admin .portal-side .brand-logo-default { display: none; }
+
+.auth-art .brand-logo-light,
+.admin .portal-side .brand-logo-light { display: block; }
+.admin-stats > button {
+  cursor: pointer;
+  transition: border-color .18s, box-shadow .18s, transform .18s;
+}
+
+.admin-stats > button:hover {
+  border-color: var(--primary);
+  box-shadow: 0 10px 28px rgba(23, 50, 46, .09);
+  transform: translateY(-2px);
+}
+
