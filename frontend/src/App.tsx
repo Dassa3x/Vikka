@@ -3,6 +3,8 @@ import handoffPusher from "./assets/handoff-pusher.png";
 import handoffReceiver from "./assets/handoff-receiver.png";
 import handoffCarton from "./assets/handoff-carton-illustrated.png";
 import heroCampus from "./assets/vikka-hero-campus.webp";
+import vikkaLogo from "./assets/vikka-logo.svg";
+import vikkaLogoLight from "./assets/vikka-logo-light.svg";
 
 type Page = "home" | "browse" | "detail" | "auth" | "dashboard" | "post" | "admin" | "info";
 type ListingType = "Rent" | "Sell" | "Exchange" | "Donate";
@@ -94,7 +96,12 @@ function Badge({ children, tone = "neutral" }: { children: ReactNode; tone?: str
 }
 
 function Brand({ onClick }: { onClick: () => void }) {
-  return <button className="brand" onClick={onClick} aria-label="Vikka.lk home"><span className="brand-mark"><span /></span><strong>Vikka</strong><b>.lk</b></button>;
+  return (
+    <button className="brand" onClick={onClick} aria-label="Vikka.lk home">
+      <img className="brand-logo brand-logo-default" src={vikkaLogo} alt="" />
+      <img className="brand-logo brand-logo-light" src={vikkaLogoLight} alt="" />
+    </button>
+  );
 }
 
 function Header({ navigate, openBrowse, loggedIn }: { navigate: (p: Page, state?: Partial<RouteState>) => void; openBrowse: (tab?: string, category?: string) => void; loggedIn: boolean }) {
@@ -1101,11 +1108,20 @@ const adminNav=["Dashboard","Listing Approval","User Management","Reports & Disp
 function Admin({ navigate, section, onSection }: { navigate:(p:Page, state?:Partial<RouteState>)=>void; section:string; onSection:(section:string)=>void }) {
   const [review,setReview]=useState(false); const [decision,setDecision]=useState(""); const [reason,setReason]=useState("");
   if(review) return <main className="admin-review"><div className="admin-review-top"><button onClick={()=>setReview(false)}>← Back to approval queue</button><div><Badge tone="warning">Pending approval</Badge><span>Submitted 18 minutes ago</span></div></div><div className="admin-review-grid"><section><h1>Canon EOS 80D camera kit</h1><div className="review-images"><img src={photos.camera} alt="Submitted camera"/><img src={photos.lens} alt="Submitted lens"/></div><div className="panel"><h2>Listing details</h2><SummaryRows rows={[["Listing type","Rent"],["Category","Cameras"],["Condition","Excellent"],["Location","CINEC Campus"],["Daily price","Rs. 750"],["Rental duration","1–14 days"]]}/><h3>Description</h3><p>Reliable camera kit in excellent condition, ideal for student projects and campus events. Includes lens, battery, charger and padded carry bag.</p></div><div className="panel"><h2>Custom guarantee options</h2>{["Show CINEC Student ID at handover","Sign a physical handover acknowledgement"].map(x=><div className="safe-option" key={x}><Icon name="check"/><span>{x}</span><Badge tone="success">Safety check passed</Badge></div>)}</div></section><aside><div className="panel sticky"><h2>Review checklist</h2>{["Images show the actual item","Item is not prohibited","Description matches images","Price appears reasonable","Guarantees are privacy-safe"].map(x=><label className="check-row" key={x}><input type="checkbox" defaultChecked/>{x}</label>)}<hr/><h3>Owner</h3><div className="owner-card compact"><span className="avatar">KD</span><div><strong>Kasun Dissanayake</strong><Badge tone="verified">Verified</Badge><p>4.9 rating · 8 transactions</p><small>Registration: CINEC/••••/1842 · Admin only</small></div></div>{decision==="reject"&&<label>Mandatory reason<textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder="Explain what must be changed"/></label>}<Button className="full" onClick={()=>setDecision("approved")}><Icon name="check"/> Approve listing</Button><Button variant="secondary" className="full" onClick={()=>setDecision("changes")}>Request changes</Button><Button variant="danger" className="full" onClick={()=>decision==="reject"&&reason?setDecision("rejected"):setDecision("reject")}>Reject listing</Button>{decision&&decision!=="reject"&&<div className="toast-inline"><Icon name="check"/>Listing {decision}. User notification and email queued.</div>}</div></aside></div></main>;
-  return <main className="portal admin"><aside className="portal-side"><Brand onClick={()=>navigate("home")}/><Badge tone="neutral">Admin portal · Demo</Badge><nav>{adminNav.map(n=><button className={section===n?"active":""} onClick={()=>onSection(n)} key={n}><Icon name={n==="Dashboard"?"grid":n==="Audit Log"?"calendar":"shield"}/>{n}</button>)}</nav><Button variant="ghost" onClick={()=>navigate("home")}>← Public marketplace</Button></aside><section className="portal-main"><div className="portal-top"><div><span className="eyebrow">Vikka operations</span><h1>{section}</h1></div><span className="admin-user"><span className="avatar">AM</span> Admin M.</span></div>{section==="Dashboard"?<AdminDashboard onReview={()=>setReview(true)}/>:<AdminSection name={section} onReview={()=>setReview(true)}/>}</section></main>;
+  return <main className="portal admin"><aside className="portal-side"><Brand onClick={()=>navigate("home")}/><Badge tone="neutral">Admin portal · Demo</Badge><nav>{adminNav.map(n=><button className={section===n?"active":""} onClick={()=>onSection(n)} key={n}><Icon name={n==="Dashboard"?"grid":n==="Audit Log"?"calendar":"shield"}/>{n}</button>)}</nav><Button variant="ghost" onClick={()=>navigate("home")}>← Public marketplace</Button></aside><section className="portal-main"><div className="portal-top"><div><span className="eyebrow">Vikka operations</span><h1>{section}</h1></div><span className="admin-user"><span className="avatar">AM</span> Admin M.</span></div>{section==="Dashboard"?<AdminDashboard onReview={()=>setReview(true)} onSection={onSection}/>:<AdminSection name={section} onReview={()=>setReview(true)}/>}</section></main>;
 }
 
-function AdminDashboard({onReview}:{onReview:()=>void}) {
-  return <><div className="stat-grid admin-stats">{[["Awaiting approval","12","4 today"],["Active users","2,418","+38 this month"],["Open reports","7","2 high priority"],["Open disputes","3","Oldest: 26h"],["Overdue rentals","5","Needs review"],["Cancellation flags","2","Admin warning only"]].map(([a,b,c])=><div key={a}><span>{a}</span><strong>{b}</strong><small>{c}</small></div>)}</div><div className="dashboard-columns wide-left"><section className="panel"><div className="panel-title"><h2>Listing approval queue</h2><button onClick={onReview}>View all</button></div>{listings.slice(0,4).map((l,i)=><button className="approval-row" onClick={onReview} key={l.id}><img src={l.image} alt=""/><div><strong>{l.title}</strong><span>{l.type} · {i*12+6} min ago</span></div><Badge tone={i===0?"warning":"neutral"}>{i===0?"Safety check":"Pending"}</Badge><Icon name="arrow"/></button>)}</section><section className="panel risk-panel"><div className="panel-title"><h2>Needs attention</h2></div>{[["Overdue rental","Tripod · 3 days overdue","warning"],["Frequent cancellations","User U-2048 · 6 in 90 days","danger"],["Recently suspended","Listing L-819 · counterfeit concern","neutral"]].map(([a,b,t])=><div key={a}><Badge tone={t}>{a}</Badge><p>{b}</p><button onClick={()=>demoFeedback(`${a} opened for admin review.`)}>Review case →</button></div>)}</section></div></>;
+function AdminDashboard({onReview,onSection}:{onReview:()=>void;onSection:(section:string)=>void}) {
+  const cardTargets: Record<string, string> = {
+    "Awaiting approval": "Listing Approval",
+    "Active users": "User Management",
+    "Open reports": "Reports & Disputes",
+    "Open disputes": "Reports & Disputes",
+    "Overdue rentals": "Reports & Disputes",
+    "Cancellation flags": "User Management",
+  };
+  
+  return <><div className="stat-grid admin-stats">{[["Awaiting approval","12","4 today"],["Active users","2,418","+38 this month"],["Open reports","7","2 high priority"],["Open disputes","3","Oldest: 26h"],["Overdue rentals","5","Needs review"],["Cancellation flags","2","Admin warning only"]].map(([a,b,c])=><button type="button" key={a} onClick={()=>onSection(cardTargets[a])}><span>{a}</span><strong>{b}</strong><small>{c}</small></button>)}</div><div className="dashboard-columns wide-left"><section className="panel"><div className="panel-title"><h2>Listing approval queue</h2><button onClick={onReview}>View all</button></div>{listings.slice(0,4).map((l,i)=><button className="approval-row" onClick={onReview} key={l.id}><img src={l.image} alt=""/><div><strong>{l.title}</strong><span>{l.type} · {i*12+6} min ago</span></div><Badge tone={i===0?"warning":"neutral"}>{i===0?"Safety check":"Pending"}</Badge><Icon name="arrow"/></button>)}</section><section className="panel risk-panel"><div className="panel-title"><h2>Needs attention</h2></div>{[["Overdue rental","Tripod · 3 days overdue","warning"],["Frequent cancellations","User U-2048 · 6 in 90 days","danger"],["Recently suspended","Listing L-819 · counterfeit concern","neutral"]].map(([a,b,t])=><div key={a}><Badge tone={t}>{a}</Badge><p>{b}</p><button onClick={()=>demoFeedback(`${a} opened for admin review.`)}>Review case →</button></div>)}</section></div></>;
 }
 
 function AdminSection({name,onReview}:{name:string;onReview:()=>void}) {
