@@ -1172,10 +1172,9 @@ function VikkaLoadingScreen({ progress, message }: { progress: number; message: 
       </div>
 
       <div className="vikka-loader-content">
-        <div className="vikka-loader-brand" aria-label="Vikka dot lk">
-          <span className="vikka-loader-mark"><span /></span>
-          <span className="vikka-loader-word">Vikka<span>.lk</span></span>
-        </div>
+        <div className="vikka-loader-brand" aria-label="Vikka.lk">
+  <img className="vikka-loader-logo" src={vikkaLogo} alt="" />
+</div>
         <div className="loader-scene" aria-hidden="true">
           <div className="loader-bag">
             <span className="loader-bag-handle" />
