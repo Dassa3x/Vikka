@@ -89,30 +89,45 @@ Storage policies check the authenticated user's ID and listing ownership. Public
 - Changes to photos on an approved listing must also return the listing to `pending` for review.
 ## 6. Test Evidence and Remaining Checks
 
-- Local database test suite passed: 4 test files, 12 tests.
-- Verified that listing RLS policies exist for select, insert, update, and delete.
-- Verified that sellers can insert and update only their own listings with draft, pending, or rejected status through the configured policies.
-- Verified that the listing photo bucket is private and has an 8 MB limit.
-- Verified that photo storage policies and the admin photo review policy exist.
-- Verified that adding an image record to an approved listing changes its status to pending in the database trigger test.
+### Completed Checks
 
-The following checks are still required:
-- Test access using separate authenticated seller and admin users.
-- Verify that users cannot read another seller's draft or pending listing or photos.
-- Verify file-size and file-type rejection through Storage uploads.
-- Confirm the secure signed-URL flow for displaying approved listing photos.
+- Local database test suite passed: 5 test files, 17 tests.
+- Verified that Row Level Security (RLS) is enabled on categories, listings, and listing_images.
+- Reviewed listing access policies for select, insert, update, and delete operations.
+- Verified that anonymous users cannot execute the admin approval function.
+- Verified that authenticated users can call the admin approval function, which performs internal admin-role and pending-status checks.
+- Verified that the approved-only browse query returns approved listings.
+- Verified that the listing photo bucket is private, with an 8 MB file-size limit and JPEG/PNG MIME types configured.
+- Tested the maximum of three image records per listing. A fourth image record was rejected.
+- Tested that adding an image record to an approved listing changes its status to pending.
+- Frontend production build passed using `npm run build`.
+- `npm audit` reported zero vulnerabilities after running `npm audit fix`.
+
+### Checks Still Required
+
+- Test listing access with separate authenticated seller accounts.
+- Verify that one seller cannot read another seller's draft or pending listings and photos.
+- Test actual Storage uploads with valid and invalid file types and file sizes.
+- Implement and verify secure signed URLs for displaying approved listing photos.
+- Test the approval function using real admin and non-admin authentication contexts.
 - Confirm whether identity documents require a separate private storage bucket.
+- Review the remaining Vite configuration warnings.
+
+Note: The database tests and policy reviews do not, by themselves, prove that all authenticated-user access scenarios are secure.
 
 ## 7. Team Handover
 
 - Share the field names, listing types, statuses, and validation rules with Dasun.
-- Ask Irushi to review the listing access and moderation rules.
-- This work depends on the existing profiles and roles migration created by Malsha.
+- Ask Irushi to review listing access, photo access, and moderation rules.
+- This work depends on the profiles and roles migration created by Malsha.
+- Explain that the secure public photo-display flow and actual authenticated-user security tests remain outstanding.
 
 ## 8. Known Decisions and Limitations
 
-- Listing photos are stored in the private `listing-review` bucket.
-- Only JPEG and PNG files are allowed, up to 8 MB per file.
+- Listing photos use the private Supabase Storage bucket `listing-review`.
+- Allowed file types are JPEG and PNG, with a configured maximum size of 8 MB per file.
 - Each listing supports a maximum of three image records.
-- Photo changes to approved listings should return the listing to pending review.
-- Actual authenticated-user security tests and the secure public photo-display flow remain to be completed.
+- The storage path follows `userId/listingId/imageId.ext`.
+- Photo changes to approved listings return the listing to pending review when the image metadata record changes.
+- A secure signed-URL flow has not yet been found in the frontend.
+- Actual authenticated-user security tests and actual Storage upload validation remain to be completed.
