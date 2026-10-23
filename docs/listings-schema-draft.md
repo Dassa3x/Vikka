@@ -87,3 +87,32 @@ Storage policies check the authenticated user's ID and listing ownership. Public
 
 - Public display of approved listing photos requires a secure method to provide access, such as short-lived signed URLs after checking that the listing is approved.
 - Changes to photos on an approved listing must also return the listing to `pending` for review.
+## 6. Test Evidence and Remaining Checks
+
+- Local database test suite passed: 4 test files, 12 tests.
+- Verified that listing RLS policies exist for select, insert, update, and delete.
+- Verified that sellers can insert and update only their own listings with draft, pending, or rejected status through the configured policies.
+- Verified that the listing photo bucket is private and has an 8 MB limit.
+- Verified that photo storage policies and the admin photo review policy exist.
+- Verified that adding an image record to an approved listing changes its status to pending in the database trigger test.
+
+The following checks are still required:
+- Test access using separate authenticated seller and admin users.
+- Verify that users cannot read another seller's draft or pending listing or photos.
+- Verify file-size and file-type rejection through Storage uploads.
+- Confirm the secure signed-URL flow for displaying approved listing photos.
+- Confirm whether identity documents require a separate private storage bucket.
+
+## 7. Team Handover
+
+- Share the field names, listing types, statuses, and validation rules with Dasun.
+- Ask Irushi to review the listing access and moderation rules.
+- This work depends on the existing profiles and roles migration created by Malsha.
+
+## 8. Known Decisions and Limitations
+
+- Listing photos are stored in the private `listing-review` bucket.
+- Only JPEG and PNG files are allowed, up to 8 MB per file.
+- Each listing supports a maximum of three image records.
+- Photo changes to approved listings should return the listing to pending review.
+- Actual authenticated-user security tests and the secure public photo-display flow remain to be completed.
