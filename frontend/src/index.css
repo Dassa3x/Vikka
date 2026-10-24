@@ -1619,3 +1619,40 @@ section.handoff {
   width: min(230px, 60vw);
   height: auto;
 }
+.portal-market-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  margin-bottom: 14px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  color: var(--primary);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.portal-market-link:hover {
+  background: var(--mint-soft);
+}
+
+.portal-logout-button {
+  width: 100%;
+  min-height: 44px;
+  margin-top: auto;
+  border: 0;
+  border-radius: 10px;
+  background: #b42318;
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.portal-logout-button:hover {
+  background: #912018;
+}
