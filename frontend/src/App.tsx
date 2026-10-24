@@ -5,10 +5,16 @@ import handoffCarton from "./assets/handoff-carton-illustrated.png";
 import heroCampus from "./assets/vikka-hero-campus.webp";
 import vikkaLogo from "./assets/vikka-logo.svg";
 import vikkaLogoLight from "./assets/vikka-logo-light.svg";
+import { supabase } from "./lib/supabase";
+
+// Capture the callback before Supabase removes its one-time URL tokens.
+// Read only the type; never store the tokens or print the callback URL.
+const recoveryLinkInUrl =
+  new URLSearchParams(window.location.hash.slice(1)).get("type") === "recovery";
 
 type Page = "home" | "browse" | "detail" | "auth" | "dashboard" | "post" | "admin" | "info";
 type ListingType = "Rent" | "Sell" | "Exchange" | "Donate";
-type AuthMode = "register" | "login" | "forgot" | "sent";
+type AuthMode = "register" | "login" | "forgot" | "sent" | "reset";
 type BrowseState = { tab: string; query: string; empty: boolean; category: string };
 type RouteState = {
   vikka: true;
@@ -72,14 +78,14 @@ const Icon = ({ name, size = 20 }: { name: string; size?: number }) => {
     art: <><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z" /><path d="m13.8 7.7 2.5 2.5M4 20l3-3" /></>,
     furniture: <><path d="M6 12V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v6M4 11v7h16v-7M7 18v3M17 18v3M4 14h16" /></>,
     listings: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></>,
-sent: <><path d="m3 11 18-8-8 18-2.5-7.5L3 11Z" /><path d="m10.5 13.5 5-5" /></>,
-received: <><path d="M4 13v6h16v-6M12 3v12m0 0-4-4m4 4 4-4" /></>,
-rentals: <><rect x="3" y="7" width="18" height="14" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18" /></>,
-purchases: <><path d="M3 5h2l2 11h11l2-8H6M9 21h.01M17 21h.01" /></>,
-exchange: <><path d="M4 7h16m0 0-4-4m4 4-4 4M20 17H4m0 0 4-4m-4 4 4 4" /></>,
-donation: <><path d="M4 11h16v10H4zM3 7h18v4H3zM12 7v14M12 7C6 7 6 3 9 3c2 0 3 4 3 4Zm0 0c6 0 6-4 3-4-2 0-3 4-3 4Z" /></>,
-reviews: <><path d="M4 4h16v13H9l-5 4V4Z" /><path d="m12 7 1 2 2 .3-1.5 1.5.4 2.2-1.9-1-1.9 1 .4-2.2L9 9.3l2-.3 1-2Z" /></>,
-settings: <><path d="M4 6h16M4 12h16M4 18h16" /><circle cx="9" cy="6" r="2" fill="white" /><circle cx="16" cy="12" r="2" fill="white" /><circle cx="10" cy="18" r="2" fill="white" /></>,
+    sent: <><path d="m3 11 18-8-8 18-2.5-7.5L3 11Z" /><path d="m10.5 13.5 5-5" /></>,
+    received: <><path d="M4 13v6h16v-6M12 3v12m0 0-4-4m4 4 4-4" /></>,
+    rentals: <><rect x="3" y="7" width="18" height="14" rx="2" /><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18" /></>,
+    purchases: <><path d="M3 5h2l2 11h11l2-8H6M9 21h.01M17 21h.01" /></>,
+    exchange: <><path d="M4 7h16m0 0-4-4m4 4-4 4M20 17H4m0 0 4-4m-4 4 4 4" /></>,
+    donation: <><path d="M4 11h16v10H4zM3 7h18v4H3zM12 7v14M12 7C6 7 6 3 9 3c2 0 3 4 3 4Zm0 0c6 0 6-4 3-4-2 0-3 4-3 4Z" /></>,
+    reviews: <><path d="M4 4h16v13H9l-5 4V4Z" /><path d="m12 7 1 2 2 .3-1.5 1.5.4 2.2-1.9-1-1.9 1 .4-2.2L9 9.3l2-.3 1-2Z" /></>,
+    settings: <><path d="M4 6h16M4 12h16M4 18h16" /><circle cx="9" cy="6" r="2" fill="white" /><circle cx="16" cy="12" r="2" fill="white" /><circle cx="10" cy="18" r="2" fill="white" /></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name] ?? paths.arrow}</svg>;
 };
@@ -104,7 +110,7 @@ function Brand({ onClick }: { onClick: () => void }) {
   );
 }
 
-function Header({ navigate, openBrowse, loggedIn }: { navigate: (p: Page, state?: Partial<RouteState>) => void; openBrowse: (tab?: string, category?: string) => void; loggedIn: boolean }) {
+function Header({ navigate, openBrowse, loggedIn, accountName }: { navigate: (p: Page, state?: Partial<RouteState>) => void; openBrowse: (tab?: string, category?: string) => void; loggedIn: boolean; accountName: string }) {
   const [open, setOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const categoriesRef = useRef<HTMLDivElement>(null);
@@ -161,7 +167,7 @@ function Header({ navigate, openBrowse, loggedIn }: { navigate: (p: Page, state?
       </nav>
       <div className="nav-actions">
         <Button variant="ghost" className="icon-btn" onClick={() => openBrowse()}><Icon name="search" /><span className="sr-only">Search</span></Button>
-        {loggedIn ? <Button variant="ghost" onClick={() => navigate("dashboard", { dashboardSection: "Overview" })}><Icon name="user" /> Nethmi</Button> : <Button variant="ghost" onClick={() => navigate("auth", { authMode: "login" })}>Log in</Button>}
+        {loggedIn ? <Button variant="ghost" onClick={() => navigate("dashboard", { dashboardSection: "Overview" })}><Icon name="user" /> {accountName || "Account"}</Button> : <Button variant="ghost" onClick={() => navigate("auth", { authMode: "login" })}>Log in</Button>}
         <Button onClick={() => loggedIn ? navigate("post") : navigate("auth", { authMode: "register" })}><Icon name="plus" /> Post an item</Button>
         <button className="menu-toggle" onClick={() => setOpen(!open)} aria-expanded={open}><Icon name={open ? "close" : "menu"} /><span className="sr-only">Menu</span></button>
       </div>
@@ -203,36 +209,36 @@ function Home({ navigate, openBrowse, openItem }: { navigate: (p: Page, state?: 
     observer.observe(section);
     return () => observer.disconnect();
   }, []);
- const ways = [
-  {
-    name: "Rent",
-    tab: "Rent",
-    icon: "calendar",
-    copy: "Use it for the days you need.",
-    className: "way-rent",
-  },
-  {
-    name: "Buy",
-    tab: "Buy",
-    icon: "grid",
-    copy: "Make it yours for less.",
-    className: "way-buy",
-  },
-  {
-    name: "Exchange",
-    tab: "Exchange",
-    icon: "exchange",
-    copy: "Trade what you have.",
-    className: "way-exchange",
-  },
-  {
-    name: "Donate",
-    tab: "Donate",
-    icon: "heart",
-    copy: "Pass it to someone who needs it.",
-    className: "way-donate",
-  },
-];
+  const ways = [
+    {
+      name: "Rent",
+      tab: "Rent",
+      icon: "calendar",
+      copy: "Use it for the days you need.",
+      className: "way-rent",
+    },
+    {
+      name: "Buy",
+      tab: "Buy",
+      icon: "grid",
+      copy: "Make it yours for less.",
+      className: "way-buy",
+    },
+    {
+      name: "Exchange",
+      tab: "Exchange",
+      icon: "exchange",
+      copy: "Trade what you have.",
+      className: "way-exchange",
+    },
+    {
+      name: "Donate",
+      tab: "Donate",
+      icon: "heart",
+      copy: "Pass it to someone who needs it.",
+      className: "way-donate",
+    },
+  ];
   return <main>
     <section className="hero section">
       <div className="hero-copy reveal">
@@ -248,19 +254,19 @@ function Home({ navigate, openBrowse, openItem }: { navigate: (p: Page, state?: 
       <div className="hero-collage reveal delay">
         <div className="collage-float collage-main-wrap">
           <img
-                src={heroCampus}
-                alt="Student books, calculator, camera and a reusable bag"
-                    className="collage-main"
-            />
+            src={heroCampus}
+            alt="Student books, calculator, camera and a reusable bag"
+            className="collage-main"
+          />
         </div>
-        
+
         <div className="collage-float collage-small-wrap top">
           <img src={photos.headphones} alt="Headphones available to exchange" className="collage-small" />
         </div>
         <div className="collage-float collage-small-wrap bottom">
           <img src={photos.laptop} alt="Laptop stand for sale" className="collage-small" />
         </div>
-       
+
       </div>
     </section>
 
@@ -294,34 +300,34 @@ function Home({ navigate, openBrowse, openItem }: { navigate: (p: Page, state?: 
     <section ref={waysRef} className={`section quick-section ${waysVisible ? "is-visible" : ""}`}>
       <div className="section-heading"><div><span className="eyebrow">Choose your way</span><h2>More useful. Less wasteful.</h2></div><p>One trusted place for every kind of campus exchange.</p></div>
       <div className="way-grid">
-  {ways.map((way, index) => (
-    <button
-      type="button"
-      className={`way-card ${way.className}`}
-      style={{ "--way-index": index } as CSSProperties}
-      key={way.name}
-      onClick={() => openBrowse(way.tab)}
-      aria-label={`Explore ${way.name.toLowerCase()} listings`}
-    >
-      <span className="way-top">
-        <span className="way-number">0{index + 1} / 04</span>
-        <span className="way-icon">
-          <Icon name={way.icon} size={22} />
-        </span>
-      </span>
+        {ways.map((way, index) => (
+          <button
+            type="button"
+            className={`way-card ${way.className}`}
+            style={{ "--way-index": index } as CSSProperties}
+            key={way.name}
+            onClick={() => openBrowse(way.tab)}
+            aria-label={`Explore ${way.name.toLowerCase()} listings`}
+          >
+            <span className="way-top">
+              <span className="way-number">0{index + 1} / 04</span>
+              <span className="way-icon">
+                <Icon name={way.icon} size={22} />
+              </span>
+            </span>
 
-      <span className="way-copy">
-        <strong>{way.name}</strong>
-        <small>{way.copy}</small>
-      </span>
+            <span className="way-copy">
+              <strong>{way.name}</strong>
+              <small>{way.copy}</small>
+            </span>
 
-      <span className="way-footer">
-        <span>Explore {way.name.toLowerCase()}</span>
-        <span className="way-arrow" aria-hidden="true">↗</span>
-      </span>
-    </button>
-  ))}
-</div>
+            <span className="way-footer">
+              <span>Explore {way.name.toLowerCase()}</span>
+              <span className="way-arrow" aria-hidden="true">↗</span>
+            </span>
+          </button>
+        ))}
+      </div>
     </section>
 
     <section className="section">
@@ -330,58 +336,58 @@ function Home({ navigate, openBrowse, openItem }: { navigate: (p: Page, state?: 
     </section>
 
     <section className="trust-band">
-  <div className="section trust-inner">
-    <div className="trust-copy">
-      <Badge tone="light">Your safety matters</Badge>
-      <h2>Share items.<br />Keep your details private.</h2>
-      <p>
-        Students can browse freely. Only verified accounts can send
-        requests. Your phone number is shared after you accept a request.
-      </p>
-      <Button
-        variant="secondary"
-        onClick={() =>
-          navigate("info", { infoTitle: "Safety on Vikka.lk" })
-        }
-      >
-        See how safety works <Icon name="arrow" size={17} />
-      </Button>
-    </div>
-
-    <div className="trust-points">
-      {[
-        [
-          "shield",
-          "Student-only requests",
-          "A verified student account is required to contact an owner.",
-        ],
-        [
-          "check",
-          "Reviewed listings",
-          "New items are checked before they appear in search.",
-        ],
-        [
-          "star",
-          "Reviews after exchange",
-          "Feedback comes after a completed transaction.",
-        ],
-        [
-          "user",
-          "Contact stays private",
-          "Phone numbers stay hidden until a request is accepted.",
-        ],
-      ].map(([icon, title, copy]) => (
-        <div className="trust-point" key={title}>
-          <span><Icon name={icon} /></span>
-          <section>
-            <strong>{title}</strong>
-            <p>{copy}</p>
-          </section>
+      <div className="section trust-inner">
+        <div className="trust-copy">
+          <Badge tone="light">Your safety matters</Badge>
+          <h2>Share items.<br />Keep your details private.</h2>
+          <p>
+            Students can browse freely. Only verified accounts can send
+            requests. Your phone number is shared after you accept a request.
+          </p>
+          <Button
+            variant="secondary"
+            onClick={() =>
+              navigate("info", { infoTitle: "Safety on Vikka.lk" })
+            }
+          >
+            See how safety works <Icon name="arrow" size={17} />
+          </Button>
         </div>
-      ))}
-    </div>
-  </div>
-</section>
+
+        <div className="trust-points">
+          {[
+            [
+              "shield",
+              "Student-only requests",
+              "A verified student account is required to contact an owner.",
+            ],
+            [
+              "check",
+              "Reviewed listings",
+              "New items are checked before they appear in search.",
+            ],
+            [
+              "star",
+              "Reviews after exchange",
+              "Feedback comes after a completed transaction.",
+            ],
+            [
+              "user",
+              "Contact stays private",
+              "Phone numbers stay hidden until a request is accepted.",
+            ],
+          ].map(([icon, title, copy]) => (
+            <div className="trust-point" key={title}>
+              <span><Icon name={icon} /></span>
+              <section>
+                <strong>{title}</strong>
+                <p>{copy}</p>
+              </section>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
 
     <section className="section how-section" id="how"><div className="section-heading"><div><span className="eyebrow">Simple from start to finish</span><h2>How Vikka works</h2></div></div>
       <div className="steps">{["Find or post an item", "Send or review a request", "Connect after acceptance", "Complete and leave a rating"].map((s, i) => <div key={s}><span>{i + 1}</span><strong>{s}</strong><p>{["Browse approved listings or create one of your own.", "Choose dates, guarantees, or send a short message.", "Contact details stay hidden until both sides agree.", "Confirm the handover and help the community build trust."][i]}</p></div>)}</div>
@@ -409,9 +415,9 @@ function Browse({ openItem, state, setState }: { openItem: (i: typeof listings[n
         <fieldset><legend>Rental availability</legend><label>From<input type="date" /></label><label>Until<input type="date" /></label></fieldset>
         <Button className="full" onClick={() => setFiltersOpen(false)}>Apply filters</Button><Button variant="ghost" className="full" onClick={() => setState(defaultBrowse)}>Clear all</Button>
       </aside>
-      <section className="results"><div className="results-bar"><div><strong>{empty ? 0 : shown.length} listings</strong><span> near CINEC Campus</span></div><div><Button variant="secondary" className="mobile-filter" onClick={() => setFiltersOpen(true)}>Filters</Button><select aria-label="Sort listings"><option>Newest first</option><option>Price: low to high</option><option>Price: high to low</option></select><button className="view-btn" onClick={()=>demoFeedback("Grid view is active.")}><Icon name="grid" /><span className="sr-only">Grid view</span></button></div></div>
+      <section className="results"><div className="results-bar"><div><strong>{empty ? 0 : shown.length} listings</strong><span> near CINEC Campus</span></div><div><Button variant="secondary" className="mobile-filter" onClick={() => setFiltersOpen(true)}>Filters</Button><select aria-label="Sort listings"><option>Newest first</option><option>Price: low to high</option><option>Price: high to low</option></select><button className="view-btn" onClick={() => demoFeedback("Grid view is active.")}><Icon name="grid" /><span className="sr-only">Grid view</span></button></div></div>
         {empty || shown.length === 0 ? <div className="empty-state"><span><Icon name="search" size={30} /></span><h2>No listings found</h2><p>Try a broader search or clear a few filters. New items are added every day.</p><Button onClick={() => update({ empty: false, query: "" })}>Clear search</Button></div> :
-        <><div className="listing-grid three">{shown.map((item) => <ListingCard item={item} key={item.id} onOpen={openItem} />)}</div><Button variant="secondary" className="load-more" onClick={() => demoFeedback("All available prototype listings are already shown.")}>Load more listings</Button></>}
+          <><div className="listing-grid three">{shown.map((item) => <ListingCard item={item} key={item.id} onOpen={openItem} />)}</div><Button variant="secondary" className="load-more" onClick={() => demoFeedback("All available prototype listings are already shown.")}>Load more listings</Button></>}
       </section>
     </div>
   </main>;
@@ -451,14 +457,14 @@ function RentalFlow({ item, close }: { item: typeof listings[number]; close: () 
   return <Modal onClose={close} wide>
     <div className="flow-head"><Badge tone="rent">Rental demo flow</Badge><span>Step {Math.min(step, 7)} of 7</span><h2>{titles[step - 1]}</h2><div className="progress"><span style={{ width: `${step / 7 * 100}%` }} /></div></div>
     {step === 1 && <div className="calendar-layout">
-      <div><div className="item-mini"><img src={item.image} alt="" /><div><strong>{item.title}</strong><span>Rs. 750 per day</span></div></div><div className="fake-calendar"><div className="cal-head"><button onClick={()=>demoFeedback("Previous month loaded.")}>←</button><strong>October 2026</strong><button onClick={()=>demoFeedback("Next month loaded.")}>→</button></div><div className="week">{["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=><b key={d}>{d}</b>)}</div><div className="days">{Array.from({length:35},(_,i)=> <button key={i} onClick={()=>demoFeedback("Rental dates updated.")} disabled={i<3 || (i>17&&i<21)} className={i===12||i===14?"selected":i===13?"between":""}>{i<3?"":i-2}</button>)}</div><div className="cal-legend"><span><i /> Selected dates</span><span><i className="blocked" /> Unavailable</span></div></div></div>
+      <div><div className="item-mini"><img src={item.image} alt="" /><div><strong>{item.title}</strong><span>Rs. 750 per day</span></div></div><div className="fake-calendar"><div className="cal-head"><button onClick={() => demoFeedback("Previous month loaded.")}>←</button><strong>October 2026</strong><button onClick={() => demoFeedback("Next month loaded.")}>→</button></div><div className="week">{["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(d => <b key={d}>{d}</b>)}</div><div className="days">{Array.from({ length: 35 }, (_, i) => <button key={i} onClick={() => demoFeedback("Rental dates updated.")} disabled={i < 3 || (i > 17 && i < 21)} className={i === 12 || i === 14 ? "selected" : i === 13 ? "between" : ""}>{i < 3 ? "" : i - 2}</button>)}</div><div className="cal-legend"><span><i /> Selected dates</span><span><i className="blocked" /> Unavailable</span></div></div></div>
       <div className="booking-summary"><label>Pickup date<input type="text" value="10 Oct 2026" readOnly /></label><label>Return date<input type="text" value="12 Oct 2026" readOnly /></label><div className="cost-row"><span>Rs. 750 × 2 rental days</span><strong>Rs. 1,500</strong></div><div className="cost-row total"><span>Estimated total</span><strong>Rs. 1,500</strong></div><p className="helper">Same-day rentals have a minimum one-day charge. Confirmed bookings block dates; pending requests do not.</p><Button className="full" onClick={() => setStep(2)}>Continue to guarantee <Icon name="arrow" /></Button></div>
     </div>}
     {step === 2 && <div className="flow-body"><p className="lead">Select at least one option you’re willing to provide at handover.</p><div className="choice-list">{guarantees.map((g) => <label className={guarantee === g ? "choice active" : "choice"} key={g}><input type="radio" name="guarantee" checked={guarantee === g} onChange={() => setGuarantee(g)} /><span><strong>{g}</strong><small>Visual confirmation at handover only</small></span></label>)}</div><div className="safety-alert"><Icon name="shield" /><p><strong>Protect your identity documents</strong> Original government identity documents must not be retained, copied, photographed, or uploaded through Vikka.lk.</p></div><Button className="full" disabled={!guarantee} onClick={() => setStep(3)}>Review request</Button></div>}
-    {step === 3 && <div className="flow-body"><SummaryRows rows={[["Item", item.title],["Dates","10–12 October 2026"],["Rental period","2 days"],["Guarantee",guarantee],["Estimated total","Rs. 1,500"]]} /><div className="no-payment"><strong>No payment is collected here.</strong><p>Vikka.lk does not process payments. Payment arrangements are made directly between users.</p></div><Button className="full" onClick={() => setStep(4)}>Submit rental request</Button></div>}
+    {step === 3 && <div className="flow-body"><SummaryRows rows={[["Item", item.title], ["Dates", "10–12 October 2026"], ["Rental period", "2 days"], ["Guarantee", guarantee], ["Estimated total", "Rs. 1,500"]]} /><div className="no-payment"><strong>No payment is collected here.</strong><p>Vikka.lk does not process payments. Payment arrangements are made directly between users.</p></div><Button className="full" onClick={() => setStep(4)}>Submit rental request</Button></div>}
     {step === 4 && <Success icon="check" title="Request sent to Kasun" copy="We’ll notify you when the owner responds. This request does not block the selected dates yet."><p className="deadline">Cancellation available until 14 October, 3:42 PM</p><Button onClick={() => setStep(5)}>Demo owner acceptance</Button></Success>}
     {step === 5 && <Success icon="shield" title="Kasun accepted your request" copy="The confirmed booking now blocks these dates. Contact details are visible to both of you."><div className="contact-card"><span><small>Owner contact</small><strong>077 ••• ••42</strong></span><span><small>Your contact shared</small><strong>071 ••• ••18</strong></span></div><Button onClick={() => setStep(6)}>Continue to return day</Button></Success>}
-    {step === 6 && <div className="flow-body"><Badge tone="warning">Return due today</Badge><h3>Ready to return the camera?</h3><p className="lead">Both people must confirm before the transaction is completed. If there’s no response within 48 hours, it is flagged for admin review.</p><SummaryRows rows={[["Return","Today before 6:00 PM"],["Handover","CINEC Campus main entrance"],["Status","Owner confirmation pending"]]} /><Button className="full" onClick={() => setStep(7)}>Mark as returned</Button><Button variant="ghost" className="full">Report a problem</Button></div>}
+    {step === 6 && <div className="flow-body"><Badge tone="warning">Return due today</Badge><h3>Ready to return the camera?</h3><p className="lead">Both people must confirm before the transaction is completed. If there’s no response within 48 hours, it is flagged for admin review.</p><SummaryRows rows={[["Return", "Today before 6:00 PM"], ["Handover", "CINEC Campus main entrance"], ["Status", "Owner confirmation pending"]]} /><Button className="full" onClick={() => setStep(7)}>Mark as returned</Button><Button variant="ghost" className="full">Report a problem</Button></div>}
     {step === 7 && <Rating onDone={close} title="How was renting from Kasun?" />}
   </Modal>;
 }
@@ -469,14 +475,14 @@ function SaleFlow({ item, close }: { item: typeof listings[number]; close: () =>
     <div className="flow-head"><Badge tone="sell">Purchase demo flow</Badge><span>Step {step} of 5</span><h2>{["Request to buy", "Seller response", "Arrange collection", "Confirm purchase", "Rate the seller"][step - 1]}</h2><div className="progress"><span style={{ width: `${step / 5 * 100}%` }} /></div></div>
     {step === 1 && <div className="flow-body"><div className="item-mini"><img src={item.image} alt="" /><div><strong>{item.title}</strong><span>{item.price}</span></div></div><label>Message to seller<textarea defaultValue="Hi, is this still available? I can collect from campus after lectures on Thursday." /></label><div className="no-payment"><strong>Pay directly to the seller</strong><p>Vikka.lk does not process payments or provide delivery.</p></div><Button className="full" onClick={() => setStep(2)}>Send purchase request</Button></div>}
     {step === 2 && <Success icon="check" title="Seller accepted your request" copy="Contact details are now visible to both of you."><div className="contact-card"><span><small>Seller</small><strong>077 ••• ••42</strong></span><span><small>Status</small><strong>Reserved for you</strong></span></div><Button onClick={() => setStep(3)}>Arrange collection</Button></Success>}
-    {step === 3 && <div className="flow-body"><Badge tone="warning">Reserved</Badge><h3>Meet safely on campus</h3><p className="lead">Inspect the item before making payment directly to the seller.</p><SummaryRows rows={[["Collection","CINEC Campus library entrance"],["Seller","Kasun Dissanayake"],["Price","Rs. 4,500"],["Payment","Arrange directly"]]} /><Button className="full" onClick={() => setStep(4)}>Seller marks item sold</Button></div>}
+    {step === 3 && <div className="flow-body"><Badge tone="warning">Reserved</Badge><h3>Meet safely on campus</h3><p className="lead">Inspect the item before making payment directly to the seller.</p><SummaryRows rows={[["Collection", "CINEC Campus library entrance"], ["Seller", "Kasun Dissanayake"], ["Price", "Rs. 4,500"], ["Payment", "Arrange directly"]]} /><Button className="full" onClick={() => setStep(4)}>Seller marks item sold</Button></div>}
     {step === 4 && <Success icon="check" title="Item marked as sold" copy="Confirm only after you’ve received and inspected the item."><Button onClick={() => setStep(5)}>I received the item</Button></Success>}
     {step === 5 && <Rating onDone={close} title="How was buying from Kasun?" />}
   </Modal>;
 }
 
 function SummaryRows({ rows }: { rows: string[][] }) {
-  return <div className="summary-rows">{rows.map(([a,b]) => <div key={a}><span>{a}</span><strong>{b}</strong></div>)}</div>;
+  return <div className="summary-rows">{rows.map(([a, b]) => <div key={a}><span>{a}</span><strong>{b}</strong></div>)}</div>;
 }
 
 function Success({ icon, title, copy, children }: { icon: string; title: string; copy: string; children?: ReactNode }) {
@@ -486,115 +492,544 @@ function Success({ icon, title, copy, children }: { icon: string; title: string;
 function Rating({ title, onDone }: { title: string; onDone: () => void }) {
   const [rating, setRating] = useState(0); const [done, setDone] = useState(false);
   if (done) return <Success icon="check" title="Review submitted" copy="Thanks for helping students trade with confidence."><Button onClick={onDone}>Done</Button></Success>;
-  return <div className="flow-body rating-form"><h3>{title}</h3><p>Your review will be linked to this completed transaction.</p><div className="stars" aria-label="Rating">{[1,2,3,4,5].map(n=><button className={rating>=n?"active":""} key={n} onClick={()=>setRating(n)} aria-label={`${n} stars`}>★</button>)}</div><label>Short review (optional)<textarea placeholder="What went well?" /></label><Button className="full" disabled={!rating} onClick={()=>setDone(true)}>Submit review</Button></div>;
+  return <div className="flow-body rating-form"><h3>{title}</h3><p>Your review will be linked to this completed transaction.</p><div className="stars" aria-label="Rating">{[1, 2, 3, 4, 5].map(n => <button className={rating >= n ? "active" : ""} key={n} onClick={() => setRating(n)} aria-label={`${n} stars`}>★</button>)}</div><label>Short review (optional)<textarea placeholder="What went well?" /></label><Button className="full" disabled={!rating} onClick={() => setDone(true)}>Submit review</Button></div>;
 }
 
-function AuthFlow({ done, mode, setMode, goBack, onHome }: { done: () => void; mode: AuthMode; setMode: (mode: AuthMode) => void; goBack: () => void; onHome: () => void }) {
-  const [step, setStep] = useState(1); const [error, setError] = useState("");
-  const backLabel =
-  mode === "forgot" || mode === "sent"
-    ? "Log in"
-    : mode === "register" && step > 1
-      ? "Previous step"
-      : "Back";
+function PasswordInput({
+  name,
+  value,
+  onChange,
+  required,
+  minLength,
+  autoComplete,
+  placeholder,
+}: {
+  name?: string;
+  value?: string;
+  onChange?: (event: { target: HTMLInputElement }) => void;
+  required?: boolean;
+  minLength?: number;
+  autoComplete?: string;
+  placeholder?: string;
+}) {
+  const [visible, setVisible] = useState(false);
 
-const handleAuthBack = () => {
-  if (mode === "forgot" || mode === "sent") {
-    setMode("login");
-  } else if (mode === "register" && step > 1) {
-    setStep(step - 1);
-  } else {
-    goBack();
-  }
-};
-  const submitEmail = (e: FormEvent) => { e.preventDefault(); const value = (new FormData(e.currentTarget as HTMLFormElement).get("email") as string); if (!value.endsWith("@student.cinec.edu")) setError("Use your CINEC student email ending in @student.cinec.edu"); else { setError(""); setStep(2); } };
-  const authPanel = mode === "login" ? <><span className="step-label">Welcome back</span><h2>Log in to Vikka</h2><p>New to the marketplace? <button className="text-link" onClick={()=>setMode("register")}>Create an account</button></p><div className="form-stack"><label>Student email or registration number<input placeholder="Email or registration number"/></label><label>Password<input type="password" placeholder="Your password"/></label><div className="form-between"><label className="check-row"><input type="checkbox"/>Remember me</label><button className="text-link" onClick={()=>setMode("forgot")}>Forgot password?</button></div><Button className="full" onClick={done}>Log in</Button><div className="form-note"><Icon name="shield"/><span>Only verified CINEC student accounts can send requests or post items.</span></div></div></>
-    : mode === "forgot" ? <><span className="step-label">Account recovery</span><h2>Reset your password</h2><p>Enter your verified student or recovery email. We’ll send a secure reset link.</p><div className="form-stack"><label>Email address<input placeholder="name@student.cinec.edu"/></label><Button className="full" onClick={()=>setMode("sent")}>Send reset link</Button></div></>
-    : mode === "sent" ? <Success icon="check" title="Check your email" copy="If the address matches an active account, a password reset link has been sent."><Button onClick={()=>setMode("login")}>Return to log in</Button></Success>
-    : null;
   return (
-  <main className="auth-page">
-    <div className="auth-art">
-      <Brand onClick={onHome} />
-      <div>
-        <Badge tone="light">Verified campus community</Badge>
-        <h1>Start your next campus exchange.</h1>
-        <p>Useful things, trusted people, and a little less waste.</p>
-      </div>
-      <div className="auth-photo">
-        <img src={photos.desk} alt="Student study essentials" />
-      </div>
-    </div>
+    <span style={{ position: "relative", display: "block" }}>
+      <input
+        name={name}
+        type={visible ? "text" : "password"}
+        value={value}
+        onChange={onChange}
+        required={required}
+        minLength={minLength}
+        autoComplete={autoComplete}
+        placeholder={placeholder}
+        style={{ paddingRight: "3.2rem" }}
+      />
+      <button
+        type="button"
+        aria-label={visible ? "Hide password" : "Show password"}
+        aria-pressed={visible}
+        onClick={() => setVisible((current) => !current)}
+        style={{
+          position: "absolute",
+          right: "0.5rem",
+          top: "50%",
+          transform: "translateY(-50%)",
+          display: "grid",
+          placeItems: "center",
+          width: "2.5rem",
+          height: "2.5rem",
+          border: 0,
+          borderRadius: "0.5rem",
+          background: "transparent",
+          color: "#667085",
+          cursor: "pointer",
+        }}
+      >
+        <svg
+          width="19"
+          height="19"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+          <circle cx="12" cy="12" r="3" />
+          {visible && <path d="m3 3 18 18" />}
+        </svg>
+      </button>
+    </span>
+  );
+}
 
-    <div className="auth-panel">
-      <div className="auth-back-row">
-        <button type="button" className="auth-back-link" onClick={handleAuthBack}>
-          <span aria-hidden="true">←</span>
-          {backLabel}
-        </button>
-      </div>
+function AuthFlow({
+  done,
+  mode,
+  setMode,
+  goBack,
+  onHome,
+}: {
+  done: () => void;
+  mode: AuthMode;
+  setMode: (mode: AuthMode) => void;
+  goBack: () => void;
+  onHome: () => void;
+}) {
+  const [step, setStep] = useState(1);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
-      {authPanel || (
-        <>
-          {step === 1 && (
-            <>
-              <span className="step-label">Registration · 1 of 3</span>
-              <h2>Create your student account</h2>
-              <p>Already a member? <button className="text-link" onClick={() => setMode("login")}>Log in</button></p>
-              <form onSubmit={submitEmail} className="form-stack">
-                <label>Full name<input required placeholder="Your full name" /></label>
-                <label>Student registration number<input required placeholder="CINEC registration number" /></label>
-                <label>
-                  CINEC student email
-                  <input name="email" required placeholder="name@student.cinec.edu" aria-invalid={!!error} />
-                  {error && <small className="error-text">{error}</small>}
-                </label>
-                <div className="split-fields">
-                  <label>Password<input required type="password" placeholder="At least 8 characters" /></label>
-                  <label>Confirm password<input required type="password" placeholder="Repeat password" /></label>
-                </div>
-                <small className="password-guide">Use 8+ characters with an uppercase letter, number and symbol.</small>
-                <label className="check-row"><input type="checkbox" required />I agree to the Terms and Privacy Policy.</label>
-                <Button type="submit" className="full">Continue to verification <Icon name="arrow" /></Button>
-              </form>
-              <div className="form-note"><Icon name="shield" /><span>Your registration number is unique and visible only to authorised admins.</span></div>
-            </>
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
+
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupBusy, setSignupBusy] = useState(false);
+
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [resetBusy, setResetBusy] = useState(false);
+
+  const handleLogin = async () => {
+    if (loginBusy) return;
+
+    setError("");
+    setNotice("");
+    setLoginBusy(true);
+
+    try {
+      const { error: loginError } = await supabase.auth.signInWithPassword({
+        email: loginEmail.trim(),
+        password: loginPassword,
+      });
+
+      if (loginError) {
+        setError(loginError.message);
+        return;
+      }
+
+      setLoginPassword("");
+      done();
+    } catch {
+      setError("Could not log in. Please check your connection and try again.");
+    } finally {
+      setLoginBusy(false);
+    }
+  };
+
+  const submitEmail = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (signupBusy) return;
+
+    const form = new FormData(e.currentTarget);
+    const fullName = String(form.get("full_name") ?? "").trim();
+    const email = String(form.get("email") ?? "").trim();
+    const password = String(form.get("password") ?? "");
+    const confirmPassword = String(form.get("confirmPassword") ?? "");
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setError("");
+    setSignupBusy(true);
+
+    try {
+      const { error: signupError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: { full_name: fullName },
+        },
+      });
+
+      if (signupError) {
+        setError(signupError.message);
+        return;
+      }
+
+      setSignupEmail(email);
+      setStep(2);
+    } catch {
+      setError("Could not create your account. Please try again.");
+    } finally {
+      setSignupBusy(false);
+    }
+  };
+
+  const requestPasswordReset = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (recoveryBusy) return;
+
+    setError("");
+    setRecoveryBusy(true);
+
+    try {
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        recoveryEmail.trim(),
+        { redirectTo: `${window.location.origin}/` }
+      );
+
+      if (resetError) {
+        setError(resetError.message);
+        return;
+      }
+
+      setMode("sent");
+    } catch {
+      setError("Could not send the reset link. Please try again.");
+    } finally {
+      setRecoveryBusy(false);
+    }
+  };
+
+  const saveNewPassword = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (resetBusy) return;
+
+    if (newPassword.length < 8) {
+      setError("Use at least 8 characters.");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setError("");
+    setResetBusy(true);
+
+    try {
+      const { error: changeError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (changeError) {
+        setError(changeError.message);
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      const { error: signOutError } = await supabase.auth.signOut();
+
+      if (signOutError) {
+        setError(
+          `Password updated, but automatic sign out failed: ${signOutError.message}`
+        );
+        return;
+      }
+
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setLoginEmail(user?.email ?? recoveryEmail);
+      setLoginPassword("");
+      setNotice("Password updated. Log in with your new password.");
+      setMode("login");
+    } catch {
+      setError("Could not update the password. Please try again.");
+    } finally {
+      setResetBusy(false);
+    }
+  };
+
+  const backLabel =
+    mode === "forgot" || mode === "sent"
+      ? "Log in"
+      : mode === "register" && step > 1
+        ? "Previous step"
+        : "Back";
+
+  const handleAuthBack = () => {
+    if (mode === "forgot" || mode === "sent") {
+      setMode("login");
+    } else if (mode === "register" && step > 1) {
+      setStep(step - 1);
+    } else {
+      goBack();
+    }
+  };
+
+  const authPanel =
+    mode === "login" ? (
+      <>
+        <span className="step-label">Welcome back</span>
+        <h2>Log in to Vikka</h2>
+        <p>
+          New to the marketplace?{" "}
+          <button className="text-link" onClick={() => setMode("register")}>
+            Create an account
+          </button>
+        </p>
+
+        <form
+          className="form-stack"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void handleLogin();
+          }}
+        >
+          <label>
+            Student email
+            <input
+              type="email"
+              required
+              value={loginEmail}
+              onChange={(e) => setLoginEmail(e.target.value)}
+              autoComplete="email"
+              placeholder="name@student.cinec.edu"
+            />
+          </label>
+
+          <label>
+            Password
+            <PasswordInput
+              required
+              value={loginPassword}
+              onChange={(e) => setLoginPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+          </label>
+
+          <button
+            type="button"
+            className="text-link"
+            onClick={() => setMode("forgot")}
+          >
+            Forgot password?
+          </button>
+
+          {notice && <p role="status">{notice}</p>}
+          {error && (
+            <p className="error-text" role="alert">
+              {error}
+            </p>
           )}
 
-          {step === 2 && (
-            <div className="verification">
-              <span className="mail-icon">@</span>
-              <span className="step-label">Registration · 2 of 3</span>
-              <h2>Check your student email</h2>
-              <p>We sent a six-digit code to <strong>nethmi@student.cinec.edu</strong></p>
-              <div className="code-inputs">
-                {[0, 1, 2, 3, 4, 5].map(x => (
-                  <input key={x} maxLength={1} defaultValue={x < 5 ? String([4, 8, 2, 1, 9][x]) : ""} aria-label={`Digit ${x + 1}`} />
-                ))}
+          <Button type="submit" className="full" disabled={loginBusy}>
+            {loginBusy ? "Logging in..." : "Log in"}
+          </Button>
+        </form>
+      </>
+    ) : mode === "forgot" ? (
+      <>
+        <span className="step-label">Account recovery</span>
+        <h2>Reset your password</h2>
+        <p>Enter your account email. We’ll send you a password reset link.</p>
+
+        <form className="form-stack" onSubmit={requestPasswordReset}>
+          <label>
+            Email address
+            <input
+              type="email"
+              required
+              value={recoveryEmail}
+              onChange={(e) => setRecoveryEmail(e.target.value)}
+              autoComplete="email"
+              placeholder="Your account email"
+            />
+          </label>
+
+          {error && (
+            <p className="error-text" role="alert">
+              {error}
+            </p>
+          )}
+
+          <Button type="submit" className="full" disabled={recoveryBusy}>
+            {recoveryBusy ? "Sending..." : "Send reset link"}
+          </Button>
+        </form>
+      </>
+    ) : mode === "reset" ? (
+      <>
+        <span className="step-label">Account recovery</span>
+        <h2>Choose a new password</h2>
+
+        <form className="form-stack" onSubmit={saveNewPassword}>
+          <label>
+            New password
+            <PasswordInput
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </label>
+
+          <label>
+            Confirm new password
+            <PasswordInput
+              required
+              minLength={8}
+              autoComplete="new-password"
+              value={confirmNewPassword}
+              onChange={(e) => setConfirmNewPassword(e.target.value)}
+            />
+          </label>
+
+          {error && (
+            <p className="error-text" role="alert">
+              {error}
+            </p>
+          )}
+
+          <Button type="submit" className="full" disabled={resetBusy}>
+            {resetBusy ? "Saving..." : "Update password"}
+          </Button>
+        </form>
+      </>
+    ) : mode === "sent" ? (
+      <Success
+        icon="check"
+        title="Check your email"
+        copy="If the address matches an active account, a password reset link has been sent."
+      >
+        <Button onClick={() => setMode("login")}>Return to log in</Button>
+      </Success>
+    ) : null;
+
+  return (
+    <main className="auth-page">
+      <div className="auth-art">
+        <Brand onClick={onHome} />
+        <div>
+          <Badge tone="light">Verified campus community</Badge>
+          <h1>Start your next campus exchange.</h1>
+          <p>Useful things, trusted people, and a little less waste.</p>
+        </div>
+        <div className="auth-photo">
+          <img src={photos.desk} alt="Student study essentials" />
+        </div>
+      </div>
+
+      <div className="auth-panel">
+        <div className="auth-back-row">
+          <button
+            type="button"
+            className="auth-back-link"
+            onClick={handleAuthBack}
+          >
+            <span aria-hidden="true">←</span>
+            {backLabel}
+          </button>
+        </div>
+
+        {authPanel || (
+          <>
+            {step === 1 && (
+              <>
+                <span className="step-label">Create account</span>
+                <h2>Create your student account</h2>
+                <p>
+                  Already a member?{" "}
+                  <button
+                    className="text-link"
+                    onClick={() => setMode("login")}
+                  >
+                    Log in
+                  </button>
+                </p>
+
+                <form onSubmit={submitEmail} className="form-stack">
+                  <label>
+                    Full name
+                    <input
+                      name="full_name"
+                      required
+                      placeholder="Your full name"
+                    />
+                  </label>
+
+                  <label>
+                    Email address
+                    <input
+                      name="email"
+                      type="email"
+                      required
+                      placeholder="Your email address"
+                      aria-invalid={!!error}
+                    />
+                    {error && (
+                      <small className="error-text">{error}</small>
+                    )}
+                  </label>
+
+                  <div className="split-fields">
+                    <label>
+                      Password
+                      <PasswordInput
+                        name="password"
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                        placeholder="At least 8 characters"
+                      />
+                    </label>
+
+                    <label>
+                      Confirm password
+                      <PasswordInput
+                        name="confirmPassword"
+                        required
+                        minLength={8}
+                        autoComplete="new-password"
+                        placeholder="Repeat password"
+                      />
+                    </label>
+                  </div>
+
+                  <small className="password-guide">
+                    Use at least 8 characters.
+                  </small>
+
+                  <label className="check-row">
+                    <input type="checkbox" required />
+                    I agree to the Terms and Privacy Policy.
+                  </label>
+
+                  <Button type="submit" className="full">
+                    Create account <Icon name="arrow" />
+                  </Button>
+                </form>
+              </>
+            )}
+
+            {step === 2 && (
+              <div className="verification">
+                <span className="mail-icon">@</span>
+                <span className="step-label">Confirm your email</span>
+                <h2>Check your email</h2>
+                <p>
+                  We sent a confirmation link to{" "}
+                  <strong>{signupEmail}</strong>.
+                </p>
+                <p>Open that link, then return here and log in.</p>
+                <Button className="full" onClick={() => setMode("login")}>
+                  Go to log in
+                </Button>
               </div>
-              <Button className="full" onClick={() => setStep(3)}>Verify email</Button>
-              <p className="resend">Resend code in 00:24</p>
-            </div>
-          )}
-
-          {step === 3 && (
-            <>
-              <span className="step-label">Registration · 3 of 3</span>
-              <h2>Finish your profile</h2>
-              <p>Only your general area is shown publicly.</p>
-              <div className="form-stack">
-                <label>Current area<select><option>Malabe</option><option>Kaduwela</option><option>CINEC Hostel</option><option>Millennium City</option></select></label>
-                <label>Contact number<input placeholder="07X XXX XXXX" /><small>Hidden until a request is accepted.</small></label>
-                <label>Optional profile picture<div className="upload-zone"><Icon name="upload" /><span><strong>Choose a photo</strong> or drag it here</span></div></label>
-                <Button className="full" onClick={done}>Complete profile</Button>
-              </div>
-            </>
-          )}
-        </>
-      )}
-    </div>
-  </main>
-);
+            )}
+          </>
+        )}
+      </div>
+    </main>
+  );
 }
 
 const dashboardNav = [
@@ -637,14 +1072,24 @@ function Dashboard({
   navigate,
   onSection,
   onPost,
+  accountEmail,
+  accountName,
+  onLogout,
 }: {
   section: string;
   navigate: (p: Page, state?: Partial<RouteState>) => void;
   onSection: (section: string) => void;
   onPost: () => void;
+  accountEmail: string;
+  accountName: string;
+  onLogout: () => void;
 }) {
   const [notice, setNotice] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const initials =
+    accountName.trim().split(/\s+/).filter(Boolean).slice(0, 2)
+      .map((part) => part[0].toUpperCase()).join("") ||
+    accountEmail.slice(0, 2).toUpperCase();
 
   return (
     <main className="portal">
@@ -667,11 +1112,20 @@ function Dashboard({
           id="dashboard-navigation"
           className={`portal-side-content ${menuOpen ? "is-open" : ""}`}
         >
+          <button
+            type="button"
+            className="portal-market-link"
+            onClick={() => navigate("home")}
+          >
+            <Icon name="grid" size={17} />
+            Back to marketplace
+          </button>
+
           <div className="portal-profile">
-            <span className="avatar">NS</span>
+            <span className="avatar">{initials}</span>
             <div>
-              <strong>Nethmi Silva</strong>
-              <small>Student account</small>
+              <strong>{accountName || "Your account"}</strong>
+              <small>Account</small>
             </div>
           </div>
 
@@ -685,9 +1139,7 @@ function Dashboard({
                     type="button"
                     key={item.label}
                     className={section === item.label ? "active" : ""}
-                    aria-current={
-                      section === item.label ? "page" : undefined
-                    }
+                    aria-current={section === item.label ? "page" : undefined}
                     onClick={() => {
                       onSection(item.label);
                       setMenuOpen(false);
@@ -709,14 +1161,14 @@ function Dashboard({
 
           <button
             type="button"
-            className="portal-back"
-            onClick={() => navigate("home")}
+            className="portal-logout-button"
+            onClick={onLogout}
           >
-            <span aria-hidden="true">←</span>
-            Back to marketplace
+            Log out
           </button>
         </div>
       </aside>
+
 
       <section className="portal-main">
         <div className="portal-top">
@@ -743,7 +1195,7 @@ function Dashboard({
         ) : section === "My Listings" ? (
           <MyListings />
         ) : section === "Account Settings" ? (
-          <AccountSettings />
+          <AccountSettings accountName={accountName} accountEmail={accountEmail} />
         ) : (
           <RequestSection
             key={section}
@@ -777,12 +1229,12 @@ function Overview({ setSection }: { setSection: (v: string) => void }) {
           <button
             type="button"
             key={title}
-           onClick={() => {
-                    if (title === "Active listings") setSection("My Listings");
-                    else if (title === "Pending requests") setSection("Requests Received");
-                    else if (title === "Upcoming returns") setSection("Rental Bookings");
-                    else if (title === "Unread notifications") setSection("Notifications");
-                    }}
+            onClick={() => {
+              if (title === "Active listings") setSection("My Listings");
+              else if (title === "Pending requests") setSection("Requests Received");
+              else if (title === "Upcoming returns") setSection("Rental Bookings");
+              else if (title === "Unread notifications") setSection("Notifications");
+            }}
           >
             <span>{title}</span>
             <strong>{value}</strong>
@@ -838,22 +1290,101 @@ function Overview({ setSection }: { setSection: (v: string) => void }) {
 }
 
 function Notifications() {
-  return <section className="panel notification-list"><div className="panel-title"><h2>Recent updates</h2><button onClick={()=>demoFeedback("All notifications marked as read.")}>Mark all as read</button></div>{[
-    ["Listing approved","Your laptop stand is now visible in the marketplace.","2 min ago","success"],
-    ["Rental request accepted","Kasun accepted your camera request. Contact details are now available.","1 hour ago","info"],
-    ["Return due tomorrow","Remember to return the travel tripod by 6:00 PM.","Yesterday","warning"],
-    ["Report update","Admin reviewed your report and marked it resolved.","3 days ago","neutral"],
-  ].map(([a,b,c,t])=><div className="notification" key={a}><span className={`notice-dot ${t}`} /><div><strong>{a}</strong><p>{b}</p><small>{c} · Email notification also sent</small></div></div>)}</section>;
+  return <section className="panel notification-list"><div className="panel-title"><h2>Recent updates</h2><button onClick={() => demoFeedback("All notifications marked as read.")}>Mark all as read</button></div>{[
+    ["Listing approved", "Your laptop stand is now visible in the marketplace.", "2 min ago", "success"],
+    ["Rental request accepted", "Kasun accepted your camera request. Contact details are now available.", "1 hour ago", "info"],
+    ["Return due tomorrow", "Remember to return the travel tripod by 6:00 PM.", "Yesterday", "warning"],
+    ["Report update", "Admin reviewed your report and marked it resolved.", "3 days ago", "neutral"],
+  ].map(([a, b, c, t]) => <div className="notification" key={a}><span className={`notice-dot ${t}`} /><div><strong>{a}</strong><p>{b}</p><small>{c} · Email notification also sent</small></div></div>)}</section>;
 }
 
 function MyListings() {
-  const [filter,setFilter]=useState("All");
-  const rows=listings.slice(0,3).map((listing,index)=>({listing,status:index===0?"Pending":index===1?"Published":"Draft"})).filter(row=>filter==="All"||row.status===filter);
-  return <section className="panel"><div className="panel-title"><h2>Your listings</h2><div className="tabs compact">{["All","Published","Pending"].map(item=><button className={filter===item?"active":""} onClick={()=>setFilter(item)} key={item}>{item}</button>)}</div></div>{rows.map(({listing:l,status},i)=><div className="manage-row" key={l.id}><img src={l.image} alt="" /><div><strong>{l.title}</strong><span>{l.price} · {l.location}</span></div><Badge tone={status==="Pending"?"warning":status==="Published"?"success":"neutral"}>{status==="Pending"?"Changes pending review":status}</Badge><Button variant="ghost" onClick={()=>demoFeedback(`${l.title} opened for editing.`)}>Manage</Button></div>)}</section>;
+  const [filter, setFilter] = useState("All");
+  const rows = listings.slice(0, 3).map((listing, index) => ({ listing, status: index === 0 ? "Pending" : index === 1 ? "Published" : "Draft" })).filter(row => filter === "All" || row.status === filter);
+  return <section className="panel"><div className="panel-title"><h2>Your listings</h2><div className="tabs compact">{["All", "Published", "Pending"].map(item => <button className={filter === item ? "active" : ""} onClick={() => setFilter(item)} key={item}>{item}</button>)}</div></div>{rows.map(({ listing: l, status }, i) => <div className="manage-row" key={l.id}><img src={l.image} alt="" /><div><strong>{l.title}</strong><span>{l.price} · {l.location}</span></div><Badge tone={status === "Pending" ? "warning" : status === "Published" ? "success" : "neutral"}>{status === "Pending" ? "Changes pending review" : status}</Badge><Button variant="ghost" onClick={() => demoFeedback(`${l.title} opened for editing.`)}>Manage</Button></div>)}</section>;
 }
 
-function AccountSettings() {
-  return <div className="dashboard-columns"><section className="panel form-stack"><h2>Profile & privacy</h2><label>Full name<input defaultValue="Nethmi Silva" /></label><label>Current area<select><option>Malabe</option></select></label><label>Contact number<input defaultValue="071 ••• ••18" /><small>Shared only when a request is accepted.</small></label><label>Recovery email (optional)<input placeholder="Add a verified personal email" /></label><Button>Save changes</Button></section><section className="panel"><h2>Public profile preview</h2><div className="profile-preview"><span className="avatar avatar-lg">NS</span><h3>Nethmi Silva</h3><Badge tone="verified"><Icon name="check" size={12}/> Verified CINEC student</Badge><p>Malabe · ★ 4.8 (6 reviews)</p><p>5 completed transactions · Member since 2025</p></div><div className="privacy-note"><Icon name="shield"/><p>Your registration number, phone number, recovery email and sensitive details are never public.</p></div></section></div>;
+function AccountSettings({
+  accountName,
+  accountEmail,
+}: {
+  accountName: string;
+  accountEmail: string;
+}) {
+  const [name, setName] = useState(accountName);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    setName(accountName);
+  }, [accountName]);
+
+  const saveName = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const nextName = name.trim();
+    if (!nextName || saving) return;
+
+    setSaving(true);
+    setMessage("");
+
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        setMessage("Please log in again.");
+        return;
+      }
+
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .update({ full_name: nextName })
+        .eq("id", user.id)
+        .select("id")
+        .single();
+
+      if (profileError) {
+        setMessage(profileError.message);
+        return;
+      }
+
+      const { error: authError } = await supabase.auth.updateUser({
+        data: { full_name: nextName },
+      });
+
+      if (authError) {
+        setMessage(`Profile saved, but display name could not update: ${authError.message}`);
+        return;
+      }
+
+      setMessage("Name saved.");
+    } catch {
+      setMessage("Could not save your name. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="dashboard-columns">
+      <form className="panel form-stack" onSubmit={saveName}>
+        <h2>Profile & privacy</h2>
+        <label>
+          Full name
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            maxLength={100}
+          />
+        </label>
+        <p><strong>Email:</strong> {accountEmail}</p>
+        <p>Registration number and account role are managed separately.</p>
+        {message && <p role="status">{message}</p>}
+        <Button type="submit" disabled={saving}>
+          {saving ? "Saving..." : "Save name"}
+        </Button>
+      </form>
+    </div>
+  );
 }
 
 function RequestSection({
@@ -1092,26 +1623,26 @@ function RequestSection({
   );
 }
 
-function ListingWizard({ close }: { close:()=>void }) {
-  const [step,setStep]=useState(1); const [type,setType]=useState<ListingType>("Rent"); const [guarantees,setGuarantees]=useState(["Show CINEC Student ID at handover","Sign a physical handover acknowledgement"]); const [submitted,setSubmitted]=useState(false);
-  if(submitted) return <main className="wizard-page"><div className="wizard-shell"><Success icon="check" title="Your listing is awaiting admin approval" copy="We’ll send an in-app and email notification after an admin reviews it. It is not public yet."><Badge tone="warning">Pending approval</Badge><Button onClick={close}>Return to dashboard</Button></Success></div></main>;
-  return <main className="wizard-page"><div className="wizard-top"><Brand onClick={close}/><button className="back-link" onClick={close}>← Back to dashboard</button><button onClick={close}>Save draft & exit</button></div><div className="wizard-shell"><div className="wizard-head"><span className="step-label">New listing · Step {step} of 5</span><h1>{["What would you like to do?","Tell us about the item","Add clear photos","Set listing details","Review your listing"][step-1]}</h1><div className="wizard-progress">{[1,2,3,4,5].map(n=><span className={step>=n?"active":""} key={n}><i>{step>n?<Icon name="check" size={14}/>:n}</i><b>{["Type","Details","Photos","Options","Review"][n-1]}</b></span>)}</div></div>
-    {step===1&&<div className="type-grid">{(["Rent","Sell","Exchange","Donate"] as ListingType[]).map((t,i)=><button className={type===t?"active":""} onClick={()=>setType(t)} key={t}><span><Icon name={["calendar","grid","arrow","heart"][i]}/></span><strong>{t}</strong><small>{["Earn by lending it for a set time","Pass it on for a fair price","Trade it for something useful","Give it to someone who needs it"][i]}</small></button>)}</div>}
-    {step===2&&<div className="form-card form-stack"><label>Listing title<input defaultValue="Canon EOS 80D camera kit" /></label><div className="split-fields"><label>Category<select><option>Cameras</option><option>Electronics</option></select></label><label>Condition<select><option>Excellent</option><option>Good</option></select></label></div><label>Description<textarea defaultValue="Reliable camera kit, ideal for student projects and campus events. Includes lens, battery, charger and padded carry bag." /></label><label>General location<select><option>CINEC Campus</option><option>Malabe</option></select><small>Never enter a permanent address or live GPS location.</small></label></div>}
-    {step===3&&<div className="form-card"><div className="upload-zone large"><Icon name="upload" size={30}/><strong>Drag up to three images here</strong><span>JPG or PNG, up to 8 MB each</span><Button variant="secondary" onClick={()=>demoFeedback("Image picker opened in the prototype.")}>Choose images</Button></div><div className="image-previews"><div className="cover"><img src={photos.camera} alt="Camera preview"/><Badge tone="verified">Cover</Badge><button onClick={()=>demoFeedback("Choose a replacement image.")}>Replace</button></div><button className="placeholder" onClick={()=>demoFeedback("Add a second image.")}>+ Add image</button><button className="placeholder" onClick={()=>demoFeedback("Add a third image.")}>+ Add image</button></div><p className="helper">Tip: photograph the actual item in good light. Drag images to reorder.</p></div>}
-    {step===4&&<div className="form-card form-stack"><div className="split-fields"><label>Daily price (Rs.)<input defaultValue="750" /></label><label>Minimum rental period<select><option>1 day</option><option>2 days</option></select></label></div><label>Maximum rental period (optional)<select><option>14 days</option><option>7 days</option></select></label><fieldset><legend>Guarantee options</legend><p className="helper">Renters must agree to at least one option.</p>{guarantees.map((g,i)=><div className="guarantee-row" key={i}><input value={g} onChange={(e)=>setGuarantees(guarantees.map((x,j)=>j===i?e.target.value:x))}/><button onClick={()=>setGuarantees(guarantees.filter((_,j)=>j!==i))}>Remove</button></div>)}<Button variant="secondary" onClick={()=>setGuarantees([...guarantees,""])}><Icon name="plus"/> Add guarantee option</Button></fieldset><div className="safety-alert"><Icon name="shield"/><p>Options requiring identity uploads, copies, photos, or retention of original documents will be rejected.</p></div></div>}
-    {step===5&&<div className="review-layout"><ListingCard item={{...listings[0],type}} onOpen={()=>{}}/><div className="form-card"><h2>Ready for review</h2><SummaryRows rows={[["Type",type],["Category","Cameras"],["Location","CINEC Campus"],["Daily price","Rs. 750"],["Images","1 of 3"],["Guarantees",String(guarantees.length)]]}/><div className="no-payment"><strong>Admin approval required</strong><p>Your listing will not be public until it passes the prohibited-item and safety review.</p></div><label className="check-row"><input type="checkbox" defaultChecked/>I confirm this item follows the Terms and Prohibited Items policy.</label></div></div>}
-    <div className="wizard-actions"><Button variant="secondary" onClick={()=>step===1?close():setStep(step-1)}>Back</Button><Button onClick={()=>step===5?setSubmitted(true):setStep(step+1)}>{step===5?"Submit for approval":"Continue"} <Icon name="arrow"/></Button></div></div></main>;
+function ListingWizard({ close }: { close: () => void }) {
+  const [step, setStep] = useState(1); const [type, setType] = useState<ListingType>("Rent"); const [guarantees, setGuarantees] = useState(["Show CINEC Student ID at handover", "Sign a physical handover acknowledgement"]); const [submitted, setSubmitted] = useState(false);
+  if (submitted) return <main className="wizard-page"><div className="wizard-shell"><Success icon="check" title="Your listing is awaiting admin approval" copy="We’ll send an in-app and email notification after an admin reviews it. It is not public yet."><Badge tone="warning">Pending approval</Badge><Button onClick={close}>Return to dashboard</Button></Success></div></main>;
+  return <main className="wizard-page"><div className="wizard-top"><Brand onClick={close} /><button className="back-link" onClick={close}>← Back to dashboard</button><button onClick={close}>Save draft & exit</button></div><div className="wizard-shell"><div className="wizard-head"><span className="step-label">New listing · Step {step} of 5</span><h1>{["What would you like to do?", "Tell us about the item", "Add clear photos", "Set listing details", "Review your listing"][step - 1]}</h1><div className="wizard-progress">{[1, 2, 3, 4, 5].map(n => <span className={step >= n ? "active" : ""} key={n}><i>{step > n ? <Icon name="check" size={14} /> : n}</i><b>{["Type", "Details", "Photos", "Options", "Review"][n - 1]}</b></span>)}</div></div>
+    {step === 1 && <div className="type-grid">{(["Rent", "Sell", "Exchange", "Donate"] as ListingType[]).map((t, i) => <button className={type === t ? "active" : ""} onClick={() => setType(t)} key={t}><span><Icon name={["calendar", "grid", "arrow", "heart"][i]} /></span><strong>{t}</strong><small>{["Earn by lending it for a set time", "Pass it on for a fair price", "Trade it for something useful", "Give it to someone who needs it"][i]}</small></button>)}</div>}
+    {step === 2 && <div className="form-card form-stack"><label>Listing title<input defaultValue="Canon EOS 80D camera kit" /></label><div className="split-fields"><label>Category<select><option>Cameras</option><option>Electronics</option></select></label><label>Condition<select><option>Excellent</option><option>Good</option></select></label></div><label>Description<textarea defaultValue="Reliable camera kit, ideal for student projects and campus events. Includes lens, battery, charger and padded carry bag." /></label><label>General location<select><option>CINEC Campus</option><option>Malabe</option></select><small>Never enter a permanent address or live GPS location.</small></label></div>}
+    {step === 3 && <div className="form-card"><div className="upload-zone large"><Icon name="upload" size={30} /><strong>Drag up to three images here</strong><span>JPG or PNG, up to 8 MB each</span><Button variant="secondary" onClick={() => demoFeedback("Image picker opened in the prototype.")}>Choose images</Button></div><div className="image-previews"><div className="cover"><img src={photos.camera} alt="Camera preview" /><Badge tone="verified">Cover</Badge><button onClick={() => demoFeedback("Choose a replacement image.")}>Replace</button></div><button className="placeholder" onClick={() => demoFeedback("Add a second image.")}>+ Add image</button><button className="placeholder" onClick={() => demoFeedback("Add a third image.")}>+ Add image</button></div><p className="helper">Tip: photograph the actual item in good light. Drag images to reorder.</p></div>}
+    {step === 4 && <div className="form-card form-stack"><div className="split-fields"><label>Daily price (Rs.)<input defaultValue="750" /></label><label>Minimum rental period<select><option>1 day</option><option>2 days</option></select></label></div><label>Maximum rental period (optional)<select><option>14 days</option><option>7 days</option></select></label><fieldset><legend>Guarantee options</legend><p className="helper">Renters must agree to at least one option.</p>{guarantees.map((g, i) => <div className="guarantee-row" key={i}><input value={g} onChange={(e) => setGuarantees(guarantees.map((x, j) => j === i ? e.target.value : x))} /><button onClick={() => setGuarantees(guarantees.filter((_, j) => j !== i))}>Remove</button></div>)}<Button variant="secondary" onClick={() => setGuarantees([...guarantees, ""])}><Icon name="plus" /> Add guarantee option</Button></fieldset><div className="safety-alert"><Icon name="shield" /><p>Options requiring identity uploads, copies, photos, or retention of original documents will be rejected.</p></div></div>}
+    {step === 5 && <div className="review-layout"><ListingCard item={{ ...listings[0], type }} onOpen={() => { }} /><div className="form-card"><h2>Ready for review</h2><SummaryRows rows={[["Type", type], ["Category", "Cameras"], ["Location", "CINEC Campus"], ["Daily price", "Rs. 750"], ["Images", "1 of 3"], ["Guarantees", String(guarantees.length)]]} /><div className="no-payment"><strong>Admin approval required</strong><p>Your listing will not be public until it passes the prohibited-item and safety review.</p></div><label className="check-row"><input type="checkbox" defaultChecked />I confirm this item follows the Terms and Prohibited Items policy.</label></div></div>}
+    <div className="wizard-actions"><Button variant="secondary" onClick={() => step === 1 ? close() : setStep(step - 1)}>Back</Button><Button onClick={() => step === 5 ? setSubmitted(true) : setStep(step + 1)}>{step === 5 ? "Submit for approval" : "Continue"} <Icon name="arrow" /></Button></div></div></main>;
 }
 
-const adminNav=["Dashboard","Listing Approval","User Management","Reports & Disputes","Prohibited Items","Audit Log"];
-function Admin({ navigate, section, onSection }: { navigate:(p:Page, state?:Partial<RouteState>)=>void; section:string; onSection:(section:string)=>void }) {
-  const [review,setReview]=useState(false); const [decision,setDecision]=useState(""); const [reason,setReason]=useState("");
-  if(review) return <main className="admin-review"><div className="admin-review-top"><button onClick={()=>setReview(false)}>← Back to approval queue</button><div><Badge tone="warning">Pending approval</Badge><span>Submitted 18 minutes ago</span></div></div><div className="admin-review-grid"><section><h1>Canon EOS 80D camera kit</h1><div className="review-images"><img src={photos.camera} alt="Submitted camera"/><img src={photos.lens} alt="Submitted lens"/></div><div className="panel"><h2>Listing details</h2><SummaryRows rows={[["Listing type","Rent"],["Category","Cameras"],["Condition","Excellent"],["Location","CINEC Campus"],["Daily price","Rs. 750"],["Rental duration","1–14 days"]]}/><h3>Description</h3><p>Reliable camera kit in excellent condition, ideal for student projects and campus events. Includes lens, battery, charger and padded carry bag.</p></div><div className="panel"><h2>Custom guarantee options</h2>{["Show CINEC Student ID at handover","Sign a physical handover acknowledgement"].map(x=><div className="safe-option" key={x}><Icon name="check"/><span>{x}</span><Badge tone="success">Safety check passed</Badge></div>)}</div></section><aside><div className="panel sticky"><h2>Review checklist</h2>{["Images show the actual item","Item is not prohibited","Description matches images","Price appears reasonable","Guarantees are privacy-safe"].map(x=><label className="check-row" key={x}><input type="checkbox" defaultChecked/>{x}</label>)}<hr/><h3>Owner</h3><div className="owner-card compact"><span className="avatar">KD</span><div><strong>Kasun Dissanayake</strong><Badge tone="verified">Verified</Badge><p>4.9 rating · 8 transactions</p><small>Registration: CINEC/••••/1842 · Admin only</small></div></div>{decision==="reject"&&<label>Mandatory reason<textarea value={reason} onChange={e=>setReason(e.target.value)} placeholder="Explain what must be changed"/></label>}<Button className="full" onClick={()=>setDecision("approved")}><Icon name="check"/> Approve listing</Button><Button variant="secondary" className="full" onClick={()=>setDecision("changes")}>Request changes</Button><Button variant="danger" className="full" onClick={()=>decision==="reject"&&reason?setDecision("rejected"):setDecision("reject")}>Reject listing</Button>{decision&&decision!=="reject"&&<div className="toast-inline"><Icon name="check"/>Listing {decision}. User notification and email queued.</div>}</div></aside></div></main>;
-  return <main className="portal admin"><aside className="portal-side"><Brand onClick={()=>navigate("home")}/><Badge tone="neutral">Admin portal · Demo</Badge><nav>{adminNav.map(n=><button className={section===n?"active":""} onClick={()=>onSection(n)} key={n}><Icon name={n==="Dashboard"?"grid":n==="Audit Log"?"calendar":"shield"}/>{n}</button>)}</nav><Button variant="ghost" onClick={()=>navigate("home")}>← Public marketplace</Button></aside><section className="portal-main"><div className="portal-top"><div><span className="eyebrow">Vikka operations</span><h1>{section}</h1></div><span className="admin-user"><span className="avatar">AM</span> Admin M.</span></div>{section==="Dashboard"?<AdminDashboard onReview={()=>setReview(true)} onSection={onSection}/>:<AdminSection name={section} onReview={()=>setReview(true)}/>}</section></main>;
+const adminNav = ["Dashboard", "Listing Approval", "User Management", "Reports & Disputes", "Prohibited Items", "Audit Log"];
+function Admin({ navigate, section, onSection }: { navigate: (p: Page, state?: Partial<RouteState>) => void; section: string; onSection: (section: string) => void }) {
+  const [review, setReview] = useState(false); const [decision, setDecision] = useState(""); const [reason, setReason] = useState("");
+  if (review) return <main className="admin-review"><div className="admin-review-top"><button onClick={() => setReview(false)}>← Back to approval queue</button><div><Badge tone="warning">Pending approval</Badge><span>Submitted 18 minutes ago</span></div></div><div className="admin-review-grid"><section><h1>Canon EOS 80D camera kit</h1><div className="review-images"><img src={photos.camera} alt="Submitted camera" /><img src={photos.lens} alt="Submitted lens" /></div><div className="panel"><h2>Listing details</h2><SummaryRows rows={[["Listing type", "Rent"], ["Category", "Cameras"], ["Condition", "Excellent"], ["Location", "CINEC Campus"], ["Daily price", "Rs. 750"], ["Rental duration", "1–14 days"]]} /><h3>Description</h3><p>Reliable camera kit in excellent condition, ideal for student projects and campus events. Includes lens, battery, charger and padded carry bag.</p></div><div className="panel"><h2>Custom guarantee options</h2>{["Show CINEC Student ID at handover", "Sign a physical handover acknowledgement"].map(x => <div className="safe-option" key={x}><Icon name="check" /><span>{x}</span><Badge tone="success">Safety check passed</Badge></div>)}</div></section><aside><div className="panel sticky"><h2>Review checklist</h2>{["Images show the actual item", "Item is not prohibited", "Description matches images", "Price appears reasonable", "Guarantees are privacy-safe"].map(x => <label className="check-row" key={x}><input type="checkbox" defaultChecked />{x}</label>)}<hr /><h3>Owner</h3><div className="owner-card compact"><span className="avatar">KD</span><div><strong>Kasun Dissanayake</strong><Badge tone="verified">Verified</Badge><p>4.9 rating · 8 transactions</p><small>Registration: CINEC/••••/1842 · Admin only</small></div></div>{decision === "reject" && <label>Mandatory reason<textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Explain what must be changed" /></label>}<Button className="full" onClick={() => setDecision("approved")}><Icon name="check" /> Approve listing</Button><Button variant="secondary" className="full" onClick={() => setDecision("changes")}>Request changes</Button><Button variant="danger" className="full" onClick={() => decision === "reject" && reason ? setDecision("rejected") : setDecision("reject")}>Reject listing</Button>{decision && decision !== "reject" && <div className="toast-inline"><Icon name="check" />Listing {decision}. User notification and email queued.</div>}</div></aside></div></main>;
+  return <main className="portal admin"><aside className="portal-side"><Brand onClick={() => navigate("home")} /><Badge tone="neutral">Admin portal · Demo</Badge><nav>{adminNav.map(n => <button className={section === n ? "active" : ""} onClick={() => onSection(n)} key={n}><Icon name={n === "Dashboard" ? "grid" : n === "Audit Log" ? "calendar" : "shield"} />{n}</button>)}</nav><Button variant="ghost" onClick={() => navigate("home")}>← Public marketplace</Button></aside><section className="portal-main"><div className="portal-top"><div><span className="eyebrow">Vikka operations</span><h1>{section}</h1></div><span className="admin-user"><span className="avatar">AM</span> Admin M.</span></div>{section === "Dashboard" ? <AdminDashboard onReview={() => setReview(true)} onSection={onSection} /> : <AdminSection name={section} onReview={() => setReview(true)} />}</section></main>;
 }
 
-function AdminDashboard({onReview,onSection}:{onReview:()=>void;onSection:(section:string)=>void}) {
+function AdminDashboard({ onReview, onSection }: { onReview: () => void; onSection: (section: string) => void }) {
   const cardTargets: Record<string, string> = {
     "Awaiting approval": "Listing Approval",
     "Active users": "User Management",
@@ -1120,23 +1651,23 @@ function AdminDashboard({onReview,onSection}:{onReview:()=>void;onSection:(secti
     "Overdue rentals": "Reports & Disputes",
     "Cancellation flags": "User Management",
   };
-  
-  return <><div className="stat-grid admin-stats">{[["Awaiting approval","12","4 today"],["Active users","2,418","+38 this month"],["Open reports","7","2 high priority"],["Open disputes","3","Oldest: 26h"],["Overdue rentals","5","Needs review"],["Cancellation flags","2","Admin warning only"]].map(([a,b,c])=><button type="button" key={a} onClick={()=>onSection(cardTargets[a])}><span>{a}</span><strong>{b}</strong><small>{c}</small></button>)}</div><div className="dashboard-columns wide-left"><section className="panel"><div className="panel-title"><h2>Listing approval queue</h2><button onClick={onReview}>View all</button></div>{listings.slice(0,4).map((l,i)=><button className="approval-row" onClick={onReview} key={l.id}><img src={l.image} alt=""/><div><strong>{l.title}</strong><span>{l.type} · {i*12+6} min ago</span></div><Badge tone={i===0?"warning":"neutral"}>{i===0?"Safety check":"Pending"}</Badge><Icon name="arrow"/></button>)}</section><section className="panel risk-panel"><div className="panel-title"><h2>Needs attention</h2></div>{[["Overdue rental","Tripod · 3 days overdue","warning"],["Frequent cancellations","User U-2048 · 6 in 90 days","danger"],["Recently suspended","Listing L-819 · counterfeit concern","neutral"]].map(([a,b,t])=><div key={a}><Badge tone={t}>{a}</Badge><p>{b}</p><button onClick={()=>demoFeedback(`${a} opened for admin review.`)}>Review case →</button></div>)}</section></div></>;
+
+  return <><div className="stat-grid admin-stats">{[["Awaiting approval", "12", "4 today"], ["Active users", "2,418", "+38 this month"], ["Open reports", "7", "2 high priority"], ["Open disputes", "3", "Oldest: 26h"], ["Overdue rentals", "5", "Needs review"], ["Cancellation flags", "2", "Admin warning only"]].map(([a, b, c]) => <button type="button" key={a} onClick={() => onSection(cardTargets[a])}><span>{a}</span><strong>{b}</strong><small>{c}</small></button>)}</div><div className="dashboard-columns wide-left"><section className="panel"><div className="panel-title"><h2>Listing approval queue</h2><button onClick={onReview}>View all</button></div>{listings.slice(0, 4).map((l, i) => <button className="approval-row" onClick={onReview} key={l.id}><img src={l.image} alt="" /><div><strong>{l.title}</strong><span>{l.type} · {i * 12 + 6} min ago</span></div><Badge tone={i === 0 ? "warning" : "neutral"}>{i === 0 ? "Safety check" : "Pending"}</Badge><Icon name="arrow" /></button>)}</section><section className="panel risk-panel"><div className="panel-title"><h2>Needs attention</h2></div>{[["Overdue rental", "Tripod · 3 days overdue", "warning"], ["Frequent cancellations", "User U-2048 · 6 in 90 days", "danger"], ["Recently suspended", "Listing L-819 · counterfeit concern", "neutral"]].map(([a, b, t]) => <div key={a}><Badge tone={t}>{a}</Badge><p>{b}</p><button onClick={() => demoFeedback(`${a} opened for admin review.`)}>Review case →</button></div>)}</section></div></>;
 }
 
-function AdminSection({name,onReview}:{name:string;onReview:()=>void}) {
-  if(name==="Listing Approval") return <section className="panel"><div className="panel-title"><h2>12 pending listings</h2><div><select><option>All types</option></select></div></div>{listings.map(l=><button className="approval-row" onClick={onReview} key={l.id}><img src={l.image} alt=""/><div><strong>{l.title}</strong><span>{l.type} · by verified user U-1842</span></div><Badge tone="warning">Pending</Badge><Icon name="arrow"/></button>)}</section>;
-  const rows:Record<string,string[][]>={
-    "User Management":[["U-1842 · Kasun D.","Verified · 4.9 rating","8 transactions"],["U-2048 · User R.","Frequent cancellation flag","6 cancellations / 90 days"],["U-2211 · Amaya P.","Suspended","2 open reports"]],
-    "Reports & Disputes":[["R-104 · Misleading listing","Reported listing L-882","Open · High"],["D-041 · Return confirmation","Rental B-220","Admin review"],["R-098 · Inappropriate review","Review RV-510","Investigating"]],
-    "Prohibited Items":[["Illegal drugs, weapons, stolen goods","Core prohibited list","Active"],["Student IDs, bank cards, fake documents","Identity & financial","Active"],["Alcohol, tobacco, dangerous chemicals","Restricted goods","Active"],["Prescription medicine, counterfeit products","Safety & authenticity","Active"]],
-    "Audit Log":[["Admin M. · Suspended listing","Target L-819","Today, 10:42 · Counterfeit concern"],["Admin S. · Approved listing","Target L-804","Yesterday, 16:20"],["Admin M. · Warning issued","Target U-2048","Yesterday, 14:05 · Frequent cancellations"]]
+function AdminSection({ name, onReview }: { name: string; onReview: () => void }) {
+  if (name === "Listing Approval") return <section className="panel"><div className="panel-title"><h2>12 pending listings</h2><div><select><option>All types</option></select></div></div>{listings.map(l => <button className="approval-row" onClick={onReview} key={l.id}><img src={l.image} alt="" /><div><strong>{l.title}</strong><span>{l.type} · by verified user U-1842</span></div><Badge tone="warning">Pending</Badge><Icon name="arrow" /></button>)}</section>;
+  const rows: Record<string, string[][]> = {
+    "User Management": [["U-1842 · Kasun D.", "Verified · 4.9 rating", "8 transactions"], ["U-2048 · User R.", "Frequent cancellation flag", "6 cancellations / 90 days"], ["U-2211 · Amaya P.", "Suspended", "2 open reports"]],
+    "Reports & Disputes": [["R-104 · Misleading listing", "Reported listing L-882", "Open · High"], ["D-041 · Return confirmation", "Rental B-220", "Admin review"], ["R-098 · Inappropriate review", "Review RV-510", "Investigating"]],
+    "Prohibited Items": [["Illegal drugs, weapons, stolen goods", "Core prohibited list", "Active"], ["Student IDs, bank cards, fake documents", "Identity & financial", "Active"], ["Alcohol, tobacco, dangerous chemicals", "Restricted goods", "Active"], ["Prescription medicine, counterfeit products", "Safety & authenticity", "Active"]],
+    "Audit Log": [["Admin M. · Suspended listing", "Target L-819", "Today, 10:42 · Counterfeit concern"], ["Admin S. · Approved listing", "Target L-804", "Yesterday, 16:20"], ["Admin M. · Warning issued", "Target U-2048", "Yesterday, 14:05 · Frequent cancellations"]]
   };
-  return <section className="panel"><div className="panel-title"><h2>{name}</h2><div><input placeholder="Search records"/><Button variant="secondary">Filter</Button></div></div><div className="admin-table">{(rows[name]||[]).map((r,i)=><div key={i}><strong>{r[0]}</strong><span>{r[1]}</span><Badge tone={r[2].includes("Active")?"success":r[2].includes("High")||r[2].includes("Suspended")?"danger":"neutral"}>{r[2]}</Badge><Button variant="ghost">Review</Button></div>)}</div>{name==="User Management"&&<p className="helper">Registration numbers are admin-only. Passwords are never available to admins. Frequent-cancellation flags do not automatically ban users.</p>}</section>;
+  return <section className="panel"><div className="panel-title"><h2>{name}</h2><div><input placeholder="Search records" /><Button variant="secondary">Filter</Button></div></div><div className="admin-table">{(rows[name] || []).map((r, i) => <div key={i}><strong>{r[0]}</strong><span>{r[1]}</span><Badge tone={r[2].includes("Active") ? "success" : r[2].includes("High") || r[2].includes("Suspended") ? "danger" : "neutral"}>{r[2]}</Badge><Button variant="ghost">Review</Button></div>)}</div>{name === "User Management" && <p className="helper">Registration numbers are admin-only. Passwords are never available to admins. Frequent-cancellation flags do not automatically ban users.</p>}</section>;
 }
 
-function InfoPage({ title, goBack, navigate }: { title:string; goBack:()=>void; navigate:(p:Page, state?:Partial<RouteState>)=>void }) {
-  const content: Record<string, [string,string[]]> = {
+function InfoPage({ title, goBack, navigate }: { title: string; goBack: () => void; navigate: (p: Page, state?: Partial<RouteState>) => void }) {
+  const content: Record<string, [string, string[]]> = {
     "Safety on Vikka.lk": ["Meet safely, protect your information, and inspect every item before completing an exchange.", ["Meet in a busy campus location.", "Never hand over original identity documents.", "Contact details appear only after a request is accepted."]],
     "Privacy": ["Your student registration number, phone number, recovery email, and sensitive details are never shown publicly.", ["We use general areas, not permanent addresses.", "Vikka.lk does not request live GPS locations.", "Identity-document images are not accepted."]],
     "Terms": ["Use Vikka.lk respectfully and only for genuine campus transactions.", ["Listings require admin approval.", "Users arrange payment and collection directly.", "Prohibited or misleading listings may be removed."]],
@@ -1147,11 +1678,11 @@ function InfoPage({ title, goBack, navigate }: { title:string; goBack:()=>void; 
     "Kasun’s student profile": ["A privacy-safe summary of this verified marketplace member.", ["★ 4.9 from 12 reviews", "8 completed campus exchanges", "Member since September 2025"]],
   };
   const [intro, bullets] = content[title] ?? ["This Vikka.lk information page is connected and ready for production content.", ["Clear campus guidance", "Privacy-first behavior", "Support for verified students"]];
-  return <main className="info-page section"><button className="back-link" onClick={goBack}>← Back</button><Badge tone="verified">Vikka.lk guide</Badge><h1>{title}</h1><p className="info-lead">{intro}</p><section className="panel info-panel">{bullets.map((item)=><div key={item}><Icon name="check"/><span>{item}</span></div>)}</section>{title==="Report this listing"&&<div className="form-card form-stack"><label>Reason<select><option>Select a reason</option>{bullets.map(x=><option key={x}>{x}</option>)}</select></label><label>Short description<textarea placeholder="Add helpful context for the admin team"/></label><Button onClick={()=>demoFeedback("Report submitted. You can track it from your dashboard.")}>Submit report</Button></div>}<Button variant="secondary" onClick={()=>navigate("home")}>Return home</Button></main>;
+  return <main className="info-page section"><button className="back-link" onClick={goBack}>← Back</button><Badge tone="verified">Vikka.lk guide</Badge><h1>{title}</h1><p className="info-lead">{intro}</p><section className="panel info-panel">{bullets.map((item) => <div key={item}><Icon name="check" /><span>{item}</span></div>)}</section>{title === "Report this listing" && <div className="form-card form-stack"><label>Reason<select><option>Select a reason</option>{bullets.map(x => <option key={x}>{x}</option>)}</select></label><label>Short description<textarea placeholder="Add helpful context for the admin team" /></label><Button onClick={() => demoFeedback("Report submitted. You can track it from your dashboard.")}>Submit report</Button></div>}<Button variant="secondary" onClick={() => navigate("home")}>Return home</Button></main>;
 }
 
-function Footer({navigate,openBrowse}:{navigate:(p:Page,state?:Partial<RouteState>)=>void;openBrowse:(tab?:string)=>void}) {
-  return <footer><div className="section footer-grid"><div><Brand onClick={()=>navigate("home")}/><p>Rent. Sell. Exchange. Share.<br/>A trusted marketplace for campus life.</p></div><div><strong>Marketplace</strong>{["Browse","Rent","Buy","Exchange","Donate"].map(x=><button onClick={()=>openBrowse(x==="Browse"?"All":x)} key={x}>{x}</button>)}</div><div><strong>Support</strong>{["How it works","Safety","Help centre","Contact"].map(x=><button onClick={()=>x==="How it works"?(navigate("home"),window.setTimeout(()=>document.querySelector("#how")?.scrollIntoView(),0)):navigate("info",{infoTitle:x==="Safety"?"Safety on Vikka.lk":x})} key={x}>{x}</button>)}</div><div><strong>Legal</strong>{["Terms","Privacy","Prohibited items"].map(x=><button onClick={()=>navigate("info",{infoTitle:x})} key={x}>{x}</button>)}</div></div><div className="footer-bottom section"><span>© 2026 Vikka.lk · Interactive prototype</span><button onClick={()=>navigate("admin",{adminSection:"Dashboard"})}>Admin demo</button></div></footer>;
+function Footer({ navigate, openBrowse }: { navigate: (p: Page, state?: Partial<RouteState>) => void; openBrowse: (tab?: string) => void }) {
+  return <footer><div className="section footer-grid"><div><Brand onClick={() => navigate("home")} /><p>Rent. Sell. Exchange. Share.<br />A trusted marketplace for campus life.</p></div><div><strong>Marketplace</strong>{["Browse", "Rent", "Buy", "Exchange", "Donate"].map(x => <button onClick={() => openBrowse(x === "Browse" ? "All" : x)} key={x}>{x}</button>)}</div><div><strong>Support</strong>{["How it works", "Safety", "Help centre", "Contact"].map(x => <button onClick={() => x === "How it works" ? (navigate("home"), window.setTimeout(() => document.querySelector("#how")?.scrollIntoView(), 0)) : navigate("info", { infoTitle: x === "Safety" ? "Safety on Vikka.lk" : x })} key={x}>{x}</button>)}</div><div><strong>Legal</strong>{["Terms", "Privacy", "Prohibited items"].map(x => <button onClick={() => navigate("info", { infoTitle: x })} key={x}>{x}</button>)}</div></div><div className="footer-bottom section"><span>© 2026 Vikka.lk · Interactive prototype</span><button onClick={() => navigate("admin", { adminSection: "Dashboard" })}>Admin demo</button></div></footer>;
 }
 
 
@@ -1173,8 +1704,8 @@ function VikkaLoadingScreen({ progress, message }: { progress: number; message: 
 
       <div className="vikka-loader-content">
         <div className="vikka-loader-brand" aria-label="Vikka.lk">
-  <img className="vikka-loader-logo" src={vikkaLogo} alt="" />
-</div>
+          <img className="vikka-loader-logo" src={vikkaLogo} alt="" />
+        </div>
         <div className="loader-scene" aria-hidden="true">
           <div className="loader-bag">
             <span className="loader-bag-handle" />
@@ -1206,30 +1737,108 @@ function VikkaLoadingScreen({ progress, message }: { progress: number; message: 
 }
 
 export default function App() {
-  const initialRoute: RouteState = window.history.state?.vikka ? window.history.state : { vikka:true, index:0, page:"home", browse:defaultBrowse };
-  const [route,setRoute]=useState<RouteState>(initialRoute); const [browseState,setBrowseState]=useState<BrowseState>(initialRoute.browse ?? defaultBrowse); const [flow,setFlow]=useState<"rental"|"sale"|null>(null); const [loggedIn,setLoggedIn]=useState(false); const [signIn,setSignIn]=useState(false); const [feedback,setFeedback]=useState("");
+  const initialRoute: RouteState = window.history.state?.vikka ? window.history.state : { vikka: true, index: 0, page: "home", browse: defaultBrowse };
+  const [route, setRoute] = useState<RouteState>(initialRoute); const [browseState, setBrowseState] = useState<BrowseState>(initialRoute.browse ?? defaultBrowse); const [flow, setFlow] = useState<"rental" | "sale" | null>(null); const [loggedIn, setLoggedIn] = useState(false); const [signIn, setSignIn] = useState(false); const [feedback, setFeedback] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
+  const [accountName, setAccountName] = useState("");
+  const [authReady, setAuthReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!active) return;
+
+        setLoggedIn(Boolean(session));
+        setAccountEmail(session?.user.email ?? "");
+        setAccountName(String(session?.user.user_metadata?.full_name ?? ""));
+
+        if (event === "PASSWORD_RECOVERY") {
+          setRoute((current) => ({
+            ...current,
+            page: "auth",
+            authMode: "reset",
+          }));
+        }
+      }
+    );
+
+    // Supabase processes a recovery link during initialization. If the
+    // event arrives before this React effect subscribes, the callback type
+    // captured above still lets us display the reset form after getSession.
+    void supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        if (!active) return;
+
+        setLoggedIn(Boolean(session));
+        setAccountEmail(session?.user.email ?? "");
+        setAccountName(String(session?.user.user_metadata?.full_name ?? ""));
+
+        if (recoveryLinkInUrl) {
+          setRoute((current) => ({
+            ...current,
+            page: "auth",
+            authMode: session && !error ? "reset" : "forgot",
+          }));
+          if (!session || error) {
+            setFeedback("Reset link expired or invalid. Request a new link.");
+          }
+        }
+      })
+      .catch(() => {
+        if (active && recoveryLinkInUrl) {
+          setRoute((current) => ({ ...current, page: "auth", authMode: "forgot" }));
+          setFeedback("Could not open the reset link. Request a new one.");
+        }
+      })
+      .finally(() => {
+        if (active) setAuthReady(true);
+      });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
   const [loading, setLoading] = useState(true);
   const [loadingLeaving, setLoadingLeaving] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(8);
   const [loadingMessage, setLoadingMessage] = useState("Warming up your campus marketplace...");
 
-  const page=route.page; const selected=listings.find(item=>item.id===route.listingId) ?? listings[0];
-  const navigate=useCallback((nextPage:Page, state:Partial<RouteState>={})=>{
-    const next:RouteState={...route,...state,vikka:true,index:route.index+1,page:nextPage,browse:state.browse ?? browseState};
-    window.history.pushState(next,"",`#/${nextPage}`);
+  const page = route.page; const selected = listings.find(item => item.id === route.listingId) ?? listings[0];
+  const navigate = useCallback((nextPage: Page, state: Partial<RouteState> = {}) => {
+    const next: RouteState = { ...route, ...state, vikka: true, index: route.index + 1, page: nextPage, browse: state.browse ?? browseState };
+    window.history.pushState(next, "", `#/${nextPage}`);
     setRoute(next);
-    window.scrollTo(0,0);
-  },[route,browseState]);
-  const goBack=useCallback((fallback:Page="home")=>route.index>0?window.history.back():navigate(fallback),[route.index,navigate]);
-  useEffect(()=>{
-    window.history.replaceState({...route,browse:browseState},"",`#/${route.page}`);
-  },[route,browseState]);
-  useEffect(()=>{
-    const onPop=(event:PopStateEvent)=>{const next:RouteState=event.state?.vikka?event.state:{vikka:true,index:0,page:"home",browse:defaultBrowse};setRoute(next);setBrowseState(next.browse??defaultBrowse);setFlow(null);setSignIn(false);};
-    const onFeedback=(event:Event)=>{setFeedback((event as CustomEvent<string>).detail);window.setTimeout(()=>setFeedback(""),2600);};
-    window.addEventListener("popstate",onPop); window.addEventListener("vikka:feedback",onFeedback);
-    return()=>{window.removeEventListener("popstate",onPop);window.removeEventListener("vikka:feedback",onFeedback);};
-  },[]);
+    window.scrollTo(0, 0);
+  }, [route, browseState]);
+  const goBack = useCallback((fallback: Page = "home") => route.index > 0 ? window.history.back() : navigate(fallback), [route.index, navigate]);
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      window.alert(`Could not log out: ${error.message}`);
+      return;
+    }
+
+    navigate("home");
+  };
+  useEffect(() => {
+    if (!authReady) return;
+
+    window.history.replaceState(
+      { ...route, browse: browseState },
+      "",
+      `#/${route.page}`
+    );
+  }, [authReady, route, browseState]);
+  useEffect(() => {
+    const onPop = (event: PopStateEvent) => { const next: RouteState = event.state?.vikka ? event.state : { vikka: true, index: 0, page: "home", browse: defaultBrowse }; setRoute(next); setBrowseState(next.browse ?? defaultBrowse); setFlow(null); setSignIn(false); };
+    const onFeedback = (event: Event) => { setFeedback((event as CustomEvent<string>).detail); window.setTimeout(() => setFeedback(""), 2600); };
+    window.addEventListener("popstate", onPop); window.addEventListener("vikka:feedback", onFeedback);
+    return () => { window.removeEventListener("popstate", onPop); window.removeEventListener("vikka:feedback", onFeedback); };
+  }, []);
   useEffect(() => {
     let cancelled = false;
     let finished = false;
@@ -1300,27 +1909,37 @@ export default function App() {
     };
   }, []);
 
-  const openBrowse=(tab="All",category?:string)=>{const next={...browseState,tab:tab==="Buy"?"Buy":tab,category:category??browseState.category,empty:false};setBrowseState(next);navigate("browse",{browse:next});};
-  const openItem=(item:typeof listings[number])=>navigate("detail",{listingId:item.id});
-  const protectedAction=()=> loggedIn ? setFlow(selected.type==="Rent"?"rental":"sale") : setSignIn(true);
-  let pageContent:ReactNode;
-  if(page==="home")pageContent=<Home navigate={navigate} openBrowse={openBrowse} openItem={openItem}/>;
-  else if(page==="browse")pageContent=<Browse openItem={openItem} state={browseState} setState={setBrowseState}/>;
-  else if(page==="detail")pageContent=<Detail item={selected} onRequest={protectedAction} guestAction={()=>loggedIn?demoFeedback("Item saved to your wishlist."):setSignIn(true)} goBack={()=>goBack("browse")} navigate={navigate}/>;
- else if(page==="auth")pageContent=<AuthFlow mode={route.authMode??"register"} setMode={(authMode)=>setRoute(current=>({...current,authMode}))} goBack={()=>goBack("home")} onHome={()=>navigate("home")} done={()=>{setLoggedIn(true);navigate("dashboard",{dashboardSection:"Overview"})}}/>;
-  else if(page==="dashboard")pageContent=<Dashboard section={route.dashboardSection??"Overview"} navigate={navigate} onSection={(dashboardSection)=>navigate("dashboard",{dashboardSection})} onPost={()=>navigate("post")}/>;
-  else if(page==="post")pageContent=<ListingWizard close={()=>goBack("dashboard")}/>;
-  else if(page==="admin")pageContent=<Admin navigate={navigate} section={route.adminSection??"Dashboard"} onSection={(adminSection)=>navigate("admin",{adminSection})}/>;
-  else pageContent=<InfoPage title={route.infoTitle??"About Vikka.lk"} goBack={()=>goBack("home")} navigate={navigate}/>;
-  const standalone=page==="auth"||page==="dashboard"||page==="post"||page==="admin";
+  const openBrowse = (tab = "All", category?: string) => { const next = { ...browseState, tab: tab === "Buy" ? "Buy" : tab, category: category ?? browseState.category, empty: false }; setBrowseState(next); navigate("browse", { browse: next }); };
+  const openItem = (item: typeof listings[number]) => navigate("detail", { listingId: item.id });
+  const protectedAction = () => loggedIn ? setFlow(selected.type === "Rent" ? "rental" : "sale") : setSignIn(true);
+  let pageContent: ReactNode;
+  if (page === "home") pageContent = <Home navigate={navigate} openBrowse={openBrowse} openItem={openItem} />;
+  else if (page === "browse") pageContent = <Browse openItem={openItem} state={browseState} setState={setBrowseState} />;
+  else if (page === "detail") pageContent = <Detail item={selected} onRequest={protectedAction} guestAction={() => loggedIn ? demoFeedback("Item saved to your wishlist.") : setSignIn(true)} goBack={() => goBack("browse")} navigate={navigate} />;
+  else if (page === "auth") pageContent = <AuthFlow mode={route.authMode ?? "register"} setMode={(authMode) => setRoute(current => ({ ...current, authMode }))} goBack={() => goBack("home")} onHome={() => navigate("home")} done={() => { setLoggedIn(true); navigate("dashboard", { dashboardSection: "Overview" }) }} />;
+  else if (page === "dashboard") pageContent = (
+    <Dashboard
+      section={route.dashboardSection ?? "Overview"}
+      navigate={navigate}
+      onSection={(dashboardSection) => navigate("dashboard", { dashboardSection })}
+      onPost={() => navigate("post")}
+      accountEmail={accountEmail}
+      accountName={accountName}
+      onLogout={() => void handleLogout()}
+    />
+  );
+  else if (page === "post") pageContent = <ListingWizard close={() => goBack("dashboard")} />;
+  else if (page === "admin") pageContent = <Admin navigate={navigate} section={route.adminSection ?? "Dashboard"} onSection={(adminSection) => navigate("admin", { adminSection })} />;
+  else pageContent = <InfoPage title={route.infoTitle ?? "About Vikka.lk"} goBack={() => goBack("home")} navigate={navigate} />;
+  const standalone = page === "auth" || page === "dashboard" || page === "post" || page === "admin";
   return <div className="app">
     {loading && <div className={loadingLeaving ? "vikka-loader is-leaving" : "vikka-loader"}><VikkaLoadingScreen progress={loadingProgress} message={loadingMessage} /></div>}
-    {!standalone&&<Header navigate={navigate} openBrowse={openBrowse} loggedIn={loggedIn}/>}
+    {!standalone && <Header navigate={navigate} openBrowse={openBrowse} loggedIn={loggedIn} accountName={accountName} />}
     {pageContent}
-    {!standalone&&<Footer navigate={navigate} openBrowse={openBrowse}/>}
-    {feedback&&<div className="global-toast" role="status"><Icon name="check"/>{feedback}</div>}
-    {signIn&&<Modal onClose={()=>setSignIn(false)}><div className="signin-dialog"><span><Icon name="shield" size={30}/></span><h2>Sign in to continue</h2><p>Log in with your verified CINEC student account to continue.</p><Button className="full" onClick={()=>{setSignIn(false);navigate("auth",{authMode:"register"})}}>Create student account</Button><Button variant="secondary" className="full" onClick={()=>{setSignIn(false);navigate("auth",{authMode:"login"})}}>Log in</Button><small>Guests can browse listings, prices and general locations, but cannot send requests, save items or post listings.</small></div></Modal>}
-    {flow==="rental"&&<RentalFlow item={selected} close={()=>setFlow(null)}/>}
-    {flow==="sale"&&<SaleFlow item={selected} close={()=>setFlow(null)}/>}
+    {!standalone && <Footer navigate={navigate} openBrowse={openBrowse} />}
+    {feedback && <div className="global-toast" role="status"><Icon name="check" />{feedback}</div>}
+    {signIn && <Modal onClose={() => setSignIn(false)}><div className="signin-dialog"><span><Icon name="shield" size={30} /></span><h2>Sign in to continue</h2><p>Log in with your verified CINEC student account to continue.</p><Button className="full" onClick={() => { setSignIn(false); navigate("auth", { authMode: "register" }) }}>Create student account</Button><Button variant="secondary" className="full" onClick={() => { setSignIn(false); navigate("auth", { authMode: "login" }) }}>Log in</Button><small>Guests can browse listings, prices and general locations, but cannot send requests, save items or post listings.</small></div></Modal>}
+    {flow === "rental" && <RentalFlow item={selected} close={() => setFlow(null)} />}
+    {flow === "sale" && <SaleFlow item={selected} close={() => setFlow(null)} />}
   </div>;
 }
