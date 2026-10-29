@@ -1624,14 +1624,145 @@ function RequestSection({
 }
 
 function ListingWizard({ close }: { close: () => void }) {
-  const [step, setStep] = useState(1); const [type, setType] = useState<ListingType>("Rent"); const [guarantees, setGuarantees] = useState(["Show CINEC Student ID at handover", "Sign a physical handover acknowledgement"]); const [submitted, setSubmitted] = useState(false);
-  if (submitted) return <main className="wizard-page"><div className="wizard-shell"><Success icon="check" title="Your listing is awaiting admin approval" copy="We’ll send an in-app and email notification after an admin reviews it. It is not public yet."><Badge tone="warning">Pending approval</Badge><Button onClick={close}>Return to dashboard</Button></Success></div></main>;
+  const [step, setStep] = useState(1); const [type, setType] = useState<ListingType>("Rent"); const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [guarantees, setGuarantees] = useState(["Show CINEC Student ID at handover", "Sign a physical handover acknowledgement"]);
+  const [condition, setCondition] = useState(""); const [submitted, setSubmitted] = useState(false);
+  const [location, setLocation] = useState("");
+  const [price, setPrice] = useState("");
+  const [categories, setCategories] = useState<
+    { id: number; name: string }[]
+  >([]);
+  const [categoryId, setCategoryId] = useState("");
+  const [categoryError, setCategoryError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadCategories() {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("name");
+
+      if (!active) return;
+
+      if (error) {
+        setCategoryError(error.message);
+      } else {
+        setCategories(data ?? []);
+      }
+    }
+
+    void loadCategories();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+    if (submitted) {
+    return (
+      <main className="wizard-page">
+        <div className="wizard-shell">
+          <Success
+            icon="check"
+            title="Your listing is awaiting admin approval"
+            copy="We’ll send an in-app and email notification after an admin reviews it. It is not public yet."
+          >
+            <Badge tone="warning">Pending approval</Badge>
+            <Button onClick={close}>Return to dashboard</Button>
+          </Success>
+        </div>
+      </main>
+    );
+  }
   return <main className="wizard-page"><div className="wizard-top"><Brand onClick={close} /><button className="back-link" onClick={close}>← Back to dashboard</button><button onClick={close}>Save draft & exit</button></div><div className="wizard-shell"><div className="wizard-head"><span className="step-label">New listing · Step {step} of 5</span><h1>{["What would you like to do?", "Tell us about the item", "Add clear photos", "Set listing details", "Review your listing"][step - 1]}</h1><div className="wizard-progress">{[1, 2, 3, 4, 5].map(n => <span className={step >= n ? "active" : ""} key={n}><i>{step > n ? <Icon name="check" size={14} /> : n}</i><b>{["Type", "Details", "Photos", "Options", "Review"][n - 1]}</b></span>)}</div></div>
     {step === 1 && <div className="type-grid">{(["Rent", "Sell", "Exchange", "Donate"] as ListingType[]).map((t, i) => <button className={type === t ? "active" : ""} onClick={() => setType(t)} key={t}><span><Icon name={["calendar", "grid", "arrow", "heart"][i]} /></span><strong>{t}</strong><small>{["Earn by lending it for a set time", "Pass it on for a fair price", "Trade it for something useful", "Give it to someone who needs it"][i]}</small></button>)}</div>}
-    {step === 2 && <div className="form-card form-stack"><label>Listing title<input defaultValue="Canon EOS 80D camera kit" /></label><div className="split-fields"><label>Category<select><option>Cameras</option><option>Electronics</option></select></label><label>Condition<select><option>Excellent</option><option>Good</option></select></label></div><label>Description<textarea defaultValue="Reliable camera kit, ideal for student projects and campus events. Includes lens, battery, charger and padded carry bag." /></label><label>General location<select><option>CINEC Campus</option><option>Malabe</option></select><small>Never enter a permanent address or live GPS location.</small></label></div>}
+    {step === 2 && <div className="form-card form-stack"><label>
+      Listing title
+      <input
+        required
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="What are you listing?"
+      />
+    </label><div className="split-fields"><label>
+      Category
+      <select
+        required
+        value={categoryId}
+        onChange={(e) => setCategoryId(e.target.value)}
+      >
+        <option value="">Select a category</option>
+        {categories.map((category) => (
+          <option key={category.id} value={category.id}>
+            {category.name}
+          </option>
+        ))}
+      </select>
+      {categoryError && (
+        <small className="error-text" role="alert">{categoryError}</small>
+      )}
+    </label><label>
+          Condition
+          <select
+            required
+            value={condition}
+            onChange={(e) => setCondition(e.target.value)}
+          >
+            <option value="">Select condition</option>
+            <option value="Excellent">Excellent</option>
+            <option value="Good">Good</option>
+            <option value="Fair">Fair</option>
+          </select>
+        </label></div><label>
+        General location
+        <select
+          required
+          value={location}
+          onChange={(e) => setLocation(e.target.value)}
+        >
+          <option value="">Select a general area</option>
+          <option value="CINEC Campus">CINEC Campus</option>
+          <option value="Malabe">Malabe</option>
+        </select>
+                <small>Never enter a permanent address or live GPS location.</small>
+      </label>
+      <label>
+        Description
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Describe the actual item and what is included"
+        />
+      </label></div>}
     {step === 3 && <div className="form-card"><div className="upload-zone large"><Icon name="upload" size={30} /><strong>Drag up to three images here</strong><span>JPG or PNG, up to 8 MB each</span><Button variant="secondary" onClick={() => demoFeedback("Image picker opened in the prototype.")}>Choose images</Button></div><div className="image-previews"><div className="cover"><img src={photos.camera} alt="Camera preview" /><Badge tone="verified">Cover</Badge><button onClick={() => demoFeedback("Choose a replacement image.")}>Replace</button></div><button className="placeholder" onClick={() => demoFeedback("Add a second image.")}>+ Add image</button><button className="placeholder" onClick={() => demoFeedback("Add a third image.")}>+ Add image</button></div><p className="helper">Tip: photograph the actual item in good light. Drag images to reorder.</p></div>}
-    {step === 4 && <div className="form-card form-stack"><div className="split-fields"><label>Daily price (Rs.)<input defaultValue="750" /></label><label>Minimum rental period<select><option>1 day</option><option>2 days</option></select></label></div><label>Maximum rental period (optional)<select><option>14 days</option><option>7 days</option></select></label><fieldset><legend>Guarantee options</legend><p className="helper">Renters must agree to at least one option.</p>{guarantees.map((g, i) => <div className="guarantee-row" key={i}><input value={g} onChange={(e) => setGuarantees(guarantees.map((x, j) => j === i ? e.target.value : x))} /><button onClick={() => setGuarantees(guarantees.filter((_, j) => j !== i))}>Remove</button></div>)}<Button variant="secondary" onClick={() => setGuarantees([...guarantees, ""])}><Icon name="plus" /> Add guarantee option</Button></fieldset><div className="safety-alert"><Icon name="shield" /><p>Options requiring identity uploads, copies, photos, or retention of original documents will be rejected.</p></div></div>}
-    {step === 5 && <div className="review-layout"><ListingCard item={{ ...listings[0], type }} onOpen={() => { }} /><div className="form-card"><h2>Ready for review</h2><SummaryRows rows={[["Type", type], ["Category", "Cameras"], ["Location", "CINEC Campus"], ["Daily price", "Rs. 750"], ["Images", "1 of 3"], ["Guarantees", String(guarantees.length)]]} /><div className="no-payment"><strong>Admin approval required</strong><p>Your listing will not be public until it passes the prohibited-item and safety review.</p></div><label className="check-row"><input type="checkbox" defaultChecked />I confirm this item follows the Terms and Prohibited Items policy.</label></div></div>}
+    {step === 4 && <div className="form-card form-stack"><div className="split-fields"><label>
+      {type === "Rent"
+        ? "Daily price (Rs.)"
+        : type === "Sell"
+          ? "Sale price (Rs.)"
+          : type === "Exchange"
+            ? "Optional cash amount (Rs.)"
+            : "Price (Rs.)"}
+      <input
+        type="number"
+        min={type === "Exchange" ? "0" : "0.01"}
+        step="0.01"
+        required={type === "Rent" || type === "Sell"}
+        disabled={type === "Donate"}
+        value={type === "Donate" ? "0" : price}
+        onChange={(e) => setPrice(e.target.value)}
+        placeholder="Enter amount"
+      />
+    </label>{type === "Rent" && (
+      <p className="helper">Rental price is per day.</p>
+    )}</div><fieldset><legend>Guarantee options</legend><p className="helper">Renters must agree to at least one option.</p>{guarantees.map((g, i) => <div className="guarantee-row" key={i}><input value={g} onChange={(e) => setGuarantees(guarantees.map((x, j) => j === i ? e.target.value : x))} /><button onClick={() => setGuarantees(guarantees.filter((_, j) => j !== i))}>Remove</button></div>)}<Button variant="secondary" onClick={() => setGuarantees([...guarantees, ""])}><Icon name="plus" /> Add guarantee option</Button></fieldset><div className="safety-alert"><Icon name="shield" /><p>Options requiring identity uploads, copies, photos, or retention of original documents will be rejected.</p></div></div>}
+    {step === 5 && <div className="review-layout"><div className="form-card">
+      <h2>{title.trim() || "Untitled listing"}</h2>
+      <p>{description.trim() || "No description added"}</p>
+    </div><div className="form-card"><h2>Ready for review</h2><SummaryRows rows={[["Type", type], ["Category", "Cameras"], ["Location", "CINEC Campus"], ["Daily price", "Rs. 750"], ["Images", "1 of 3"], ["Guarantees", String(guarantees.length)]]} /><div className="no-payment"><strong>Admin approval required</strong><p>Your listing will not be public until it passes the prohibited-item and safety review.</p></div><label className="check-row"><input type="checkbox" defaultChecked />I confirm this item follows the Terms and Prohibited Items policy.</label></div></div>}
     <div className="wizard-actions"><Button variant="secondary" onClick={() => step === 1 ? close() : setStep(step - 1)}>Back</Button><Button onClick={() => step === 5 ? setSubmitted(true) : setStep(step + 1)}>{step === 5 ? "Submit for approval" : "Continue"} <Icon name="arrow" /></Button></div></div></main>;
 }
 
