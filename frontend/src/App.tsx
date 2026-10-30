@@ -20,7 +20,7 @@ type RouteState = {
   vikka: true;
   index: number;
   page: Page;
-  listingId?: number;
+  listingId?: number | string;
   authMode?: AuthMode;
   dashboardSection?: string;
   adminSection?: string;
@@ -395,32 +395,713 @@ function Home({ navigate, openBrowse, openItem }: { navigate: (p: Page, state?: 
   </main>;
 }
 
-function Browse({ openItem, state, setState }: { openItem: (i: typeof listings[number]) => void; state: BrowseState; setState: (state: BrowseState) => void }) {
-  const { tab, query, empty, category } = state;
+type PublicCategory = {
+  id: number;
+  name: string;
+};
+
+type PublicListingRow = {
+  id: string;
+  title: string;
+  description: string | null;
+  category_id: number | null;
+  listing_type: string;
+  price: number | string | null;
+  price_period: string | null;
+  location: string;
+  condition: string | null;
+  created_at: string;
+};
+
+type PublicListing = PublicListingRow & {
+  type: ListingType;
+  category: string;
+  numericPrice: number | null;
+  displayPrice: string;
+};
+
+function publicListingType(value: string): ListingType {
+  switch (value.trim().toLowerCase()) {
+    case "rent":
+    case "rental":
+      return "Rent";
+    case "sell":
+    case "sale":
+      return "Sell";
+    case "exchange":
+      return "Exchange";
+    case "donate":
+    case "donation":
+      return "Donate";
+    default:
+      throw new Error(`Unsupported listing type: ${value}`);
+  }
+}
+
+function publicListingPrice(
+  type: ListingType,
+  price: number | null,
+  period: string | null
+): string {
+  if (type === "Donate") return "Free";
+
+  if (price === null) {
+    return type === "Exchange"
+      ? "Exchange offer"
+      : "Price not provided";
+  }
+
+  const amount = `Rs. ${price.toLocaleString("en-LK", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+
+  if (type === "Rent") {
+    return `${amount} / ${period || "day"}`;
+  }
+
+  if (type === "Exchange") {
+    return `${amount} cash adjustment`;
+  }
+
+  return amount;
+}
+
+async function fetchPublicMarketplace(listingId?: string): Promise<{
+  categories: PublicCategory[];
+  items: PublicListing[];
+}> {
+  let listingQuery = supabase
+    .from("listings")
+    .select(
+      "id, title, description, category_id, listing_type, price, price_period, location, condition, created_at"
+    )
+    .eq("status", "approved");
+
+  if (listingId) {
+    listingQuery = listingQuery.eq("id", listingId);
+  }
+
+  const [categoryResult, listingResult] = await Promise.all([
+    supabase
+      .from("categories")
+      .select("id, name")
+      .eq("is_active", true)
+      .order("name"),
+    listingQuery
+      .order("created_at", { ascending: false })
+      .limit(listingId ? 1 : 100),
+  ]);
+
+  if (categoryResult.error) {
+    throw new Error(categoryResult.error.message);
+  }
+
+  if (listingResult.error) {
+    throw new Error(listingResult.error.message);
+  }
+
+  const categories = (categoryResult.data ?? []) as PublicCategory[];
+  const rows = (listingResult.data ?? []) as PublicListingRow[];
+
+  const categoryNames = new Map(
+    categories.map((category) => [
+      String(category.id),
+      category.name,
+    ])
+  );
+
+  const items = rows.map((row): PublicListing => {
+    const type = publicListingType(row.listing_type);
+    const parsedPrice =
+      row.price === null ? null : Number(row.price);
+
+    const numericPrice =
+      parsedPrice !== null && Number.isFinite(parsedPrice)
+        ? parsedPrice
+        : null;
+
+    return {
+      ...row,
+      type,
+      category:
+        categoryNames.get(String(row.category_id)) ??
+        "Category unavailable",
+      numericPrice: type === "Donate" ? 0 : numericPrice,
+      displayPrice: publicListingPrice(
+        type,
+        numericPrice,
+        row.price_period
+      ),
+    };
+  });
+
+  return { categories, items };
+}
+
+function PublicPhotoPlaceholder() {
+  return (
+    <div
+      style={{
+        minHeight: 210,
+        width: "100%",
+        display: "grid",
+        placeItems: "center",
+        background: "#F3F4F6",
+        color: "#667085",
+        padding: 24,
+        boxSizing: "border-box",
+        textAlign: "center",
+      }}
+    >
+      <span>Photo unavailable</span>
+    </div>
+  );
+}
+
+function Browse({
+  onOpenLive,
+  state,
+  setState,
+}: {
+  onOpenLive: (id: string) => void;
+  state: BrowseState;
+  setState: (state: BrowseState) => void;
+}) {
+  const { tab, query, category } = state;
+
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const update = (next: Partial<BrowseState>) => setState({ ...state, ...next });
-  const shown = listings.filter((l) => (tab === "All" || l.type === tab || (tab === "Buy" && l.type === "Sell")) && (category === "All categories" || l.category === category) && l.title.toLowerCase().includes(query.toLowerCase()));
-  return <main className="browse-page">
-    <div className="browse-head section">
-      <Badge tone="neutral">CINEC marketplace</Badge><h1>Find something useful</h1><p>Browse verified listings from students around campus.</p>
-      <div className="wide-search"><Icon name="search" /><input value={query} onChange={(e) => update({ query: e.target.value })} placeholder="Search by item, category or keyword" /><Button onClick={() => update({ empty: query.toLowerCase() === "drone" })}>Search</Button></div>
-      <div className="tabs" role="tablist">{["All", "Rent", "Buy", "Exchange", "Donate"].map((t) => <button role="tab" aria-selected={tab === t} className={tab === t ? "active" : ""} onClick={() => update({ tab: t, empty: false })} key={t}>{t}</button>)}</div>
-      {category !== "All categories" && <div className="active-category" role="status"><span>Category</span><strong>{category}</strong><button onClick={() => update({ category: "All categories" })} aria-label={`Clear ${category} category filter`}><Icon name="close" size={15} /></button></div>}
-    </div>
-    <div className="browse-layout section">
-      <aside className={`filters ${filtersOpen ? "open" : ""}`}><div className="filter-title"><strong>Filters</strong><button onClick={() => setFiltersOpen(false)}><Icon name="close" /></button></div>
-        <label>Category<select value={category} onChange={(e) => update({ category: e.target.value })}><option>All categories</option><option>Electronics</option><option>Books & Notes</option><option>Cameras</option><option>Sports Equipment</option><option>Art & Design</option><option>Furniture</option><option>Other</option></select></label>
-        <fieldset><legend>Price range</legend><div className="price-fields"><input placeholder="Min" aria-label="Minimum price" /><span>—</span><input placeholder="Max" aria-label="Maximum price" /></div></fieldset>
-        <fieldset><legend>Condition</legend>{["New", "Like new", "Good", "Fair"].map((x) => <label className="check-row" key={x}><input type="checkbox" />{x}</label>)}</fieldset>
-        <fieldset><legend>Rental availability</legend><label>From<input type="date" /></label><label>Until<input type="date" /></label></fieldset>
-        <Button className="full" onClick={() => setFiltersOpen(false)}>Apply filters</Button><Button variant="ghost" className="full" onClick={() => setState(defaultBrowse)}>Clear all</Button>
-      </aside>
-      <section className="results"><div className="results-bar"><div><strong>{empty ? 0 : shown.length} listings</strong><span> near CINEC Campus</span></div><div><Button variant="secondary" className="mobile-filter" onClick={() => setFiltersOpen(true)}>Filters</Button><select aria-label="Sort listings"><option>Newest first</option><option>Price: low to high</option><option>Price: high to low</option></select><button className="view-btn" onClick={() => demoFeedback("Grid view is active.")}><Icon name="grid" /><span className="sr-only">Grid view</span></button></div></div>
-        {empty || shown.length === 0 ? <div className="empty-state"><span><Icon name="search" size={30} /></span><h2>No listings found</h2><p>Try a broader search or clear a few filters. New items are added every day.</p><Button onClick={() => update({ empty: false, query: "" })}>Clear search</Button></div> :
-          <><div className="listing-grid three">{shown.map((item) => <ListingCard item={item} key={item.id} onOpen={openItem} />)}</div><Button variant="secondary" className="load-more" onClick={() => demoFeedback("All available prototype listings are already shown.")}>Load more listings</Button></>}
-      </section>
-    </div>
-  </main>;
+  const [items, setItems] = useState<PublicListing[]>([]);
+  const [categories, setCategories] = useState<PublicCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [reload, setReload] = useState(0);
+
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [conditions, setConditions] = useState<string[]>([]);
+  const [sort, setSort] = useState("newest");
+
+  const update = (next: Partial<BrowseState>) => {
+    setState({ ...state, ...next, empty: false });
+  };
+
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      setLoading(true);
+      setError("");
+
+      try {
+        const result = await fetchPublicMarketplace();
+
+        if (!active) return;
+
+        setItems(result.items);
+        setCategories(result.categories);
+      } catch (err) {
+        if (!active) return;
+
+        setItems([]);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Could not load listings."
+        );
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void load();
+
+    return () => {
+      active = false;
+    };
+  }, [reload]);
+
+  const toggleCondition = (value: string) => {
+    setConditions((current) =>
+      current.includes(value)
+        ? current.filter((condition) => condition !== value)
+        : [...current, value]
+    );
+  };
+
+  const clearFilters = () => {
+    setState({ ...defaultBrowse });
+    setMinPrice("");
+    setMaxPrice("");
+    setConditions([]);
+    setSort("newest");
+  };
+
+  const search = query.trim().toLowerCase();
+  const minimum = minPrice.trim() ? Number(minPrice) : null;
+  const maximum = maxPrice.trim() ? Number(maxPrice) : null;
+
+  const priceError =
+    minimum !== null &&
+    maximum !== null &&
+    minimum > maximum;
+
+  const shown = items
+    .filter((item) => {
+      const matchesType =
+        tab === "All" ||
+        item.type === tab ||
+        (tab === "Buy" && item.type === "Sell");
+
+      const matchesCategory =
+        category === "All categories" ||
+        item.category === category;
+
+      const matchesSearch = [
+        item.title,
+        item.description ?? "",
+        item.category,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(search);
+
+      const matchesCondition =
+        conditions.length === 0 ||
+        conditions.some(
+          (value) =>
+            value.toLowerCase() ===
+            (item.condition ?? "").toLowerCase()
+        );
+
+      const matchesMinimum =
+        minimum === null ||
+        (item.numericPrice !== null &&
+          item.numericPrice >= minimum);
+
+      const matchesMaximum =
+        maximum === null ||
+        (item.numericPrice !== null &&
+          item.numericPrice <= maximum);
+
+      return (
+        !priceError &&
+        matchesType &&
+        matchesCategory &&
+        matchesSearch &&
+        matchesCondition &&
+        matchesMinimum &&
+        matchesMaximum
+      );
+    })
+    .sort((a, b) => {
+      if (sort === "newest") {
+        return (
+          new Date(b.created_at).getTime() -
+          new Date(a.created_at).getTime()
+        );
+      }
+
+      if (a.numericPrice === null && b.numericPrice === null) {
+        return 0;
+      }
+
+      if (a.numericPrice === null) return 1;
+      if (b.numericPrice === null) return -1;
+
+      return sort === "price-low"
+        ? a.numericPrice - b.numericPrice
+        : b.numericPrice - a.numericPrice;
+    });
+
+  return (
+    <main className="browse-page">
+      <div className="browse-head section">
+        <Badge tone="neutral">CINEC marketplace</Badge>
+        <h1>Find something useful</h1>
+        <p>Browse approved listings around campus.</p>
+
+        <form
+          className="wide-search"
+          onSubmit={(event) => {
+            event.preventDefault();
+            update({ query });
+          }}
+        >
+          <Icon name="search" />
+          <input
+            value={query}
+            onChange={(event) =>
+              update({ query: event.target.value })
+            }
+            placeholder="Search by item, category or keyword"
+            aria-label="Search listings"
+          />
+          <Button>Search</Button>
+        </form>
+
+        <div className="tabs" role="tablist">
+          {["All", "Rent", "Buy", "Exchange", "Donate"].map(
+            (value) => (
+              <button
+                role="tab"
+                aria-selected={tab === value}
+                className={tab === value ? "active" : ""}
+                onClick={() => update({ tab: value })}
+                key={value}
+              >
+                {value}
+              </button>
+            )
+          )}
+        </div>
+
+        {category !== "All categories" && (
+          <div className="active-category" role="status">
+            <span>Category</span>
+            <strong>{category}</strong>
+            <button
+              onClick={() =>
+                update({ category: "All categories" })
+              }
+              aria-label={`Clear ${category} category filter`}
+            >
+              <Icon name="close" size={15} />
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="browse-layout section">
+        <aside className={`filters ${filtersOpen ? "open" : ""}`}>
+          <div className="filter-title">
+            <strong>Filters</strong>
+            <button
+              onClick={() => setFiltersOpen(false)}
+              aria-label="Close filters"
+            >
+              <Icon name="close" />
+            </button>
+          </div>
+
+          <label>
+            Category
+            <select
+              value={category}
+              onChange={(event) =>
+                update({ category: event.target.value })
+              }
+            >
+              <option value="All categories">All categories</option>
+
+              {category !== "All categories" &&
+                !categories.some(
+                  (entry) => entry.name === category
+                ) && (
+                  <option value={category}>{category}</option>
+                )}
+
+              {categories.map((entry) => (
+                <option key={entry.id} value={entry.name}>
+                  {entry.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <fieldset>
+            <legend>Price range</legend>
+            <div className="price-fields">
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={minPrice}
+                onChange={(event) =>
+                  setMinPrice(event.target.value)
+                }
+                placeholder="Min"
+                aria-label="Minimum price"
+              />
+              <span>—</span>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={maxPrice}
+                onChange={(event) =>
+                  setMaxPrice(event.target.value)
+                }
+                placeholder="Max"
+                aria-label="Maximum price"
+              />
+            </div>
+            <p className="helper">
+              Rental prices use the period shown on each listing.
+            </p>
+            {priceError && (
+              <p className="error-text" role="alert">
+                Maximum price must be at least the minimum price.
+              </p>
+            )}
+          </fieldset>
+
+          <fieldset>
+            <legend>Condition</legend>
+            {["New", "Like new", "Excellent", "Good", "Fair"].map(
+              (value) => (
+                <label className="check-row" key={value}>
+                  <input
+                    type="checkbox"
+                    checked={conditions.includes(value)}
+                    onChange={() => toggleCondition(value)}
+                  />
+                  {value}
+                </label>
+              )
+            )}
+          </fieldset>
+
+          <Button
+            className="full"
+            onClick={() => setFiltersOpen(false)}
+          >
+            Show results
+          </Button>
+
+          <Button
+            variant="ghost"
+            className="full"
+            onClick={clearFilters}
+          >
+            Clear all
+          </Button>
+        </aside>
+
+        <section className="results" aria-busy={loading}>
+          <div className="results-bar">
+            <div>
+              <strong>
+                {loading
+                  ? "Loading listings..."
+                  : error
+                    ? "Listings unavailable"
+                    : `${shown.length} listings`}
+              </strong>
+            </div>
+
+            <div>
+              <Button
+                variant="secondary"
+                className="mobile-filter"
+                onClick={() => setFiltersOpen(true)}
+              >
+                Filters
+              </Button>
+
+              <select
+                aria-label="Sort listings"
+                value={sort}
+                onChange={(event) => setSort(event.target.value)}
+              >
+                <option value="newest">Newest first</option>
+                <option value="price-low">Price: low to high</option>
+                <option value="price-high">Price: high to low</option>
+              </select>
+            </div>
+          </div>
+
+          {loading ? (
+            <p role="status">Loading approved listings...</p>
+          ) : error ? (
+            <div className="empty-state">
+              <h2>Could not load listings</h2>
+              <p role="alert">{error}</p>
+              <Button onClick={() => setReload((value) => value + 1)}>
+                Try again
+              </Button>
+            </div>
+          ) : shown.length === 0 ? (
+            <div className="empty-state">
+              <span>
+                <Icon name="search" size={30} />
+              </span>
+              <h2>No listings found</h2>
+              <p>
+                Try clearing your filters. Only approved listings
+                appear here.
+              </p>
+              <Button onClick={clearFilters}>Clear filters</Button>
+            </div>
+          ) : (
+            <>
+              <div className="listing-grid three">
+                {shown.map((item) => (
+                  <article className="listing-card" key={item.id}>
+                    <div className="card-image-wrap">
+                      <button
+                        className="card-image-link"
+                        onClick={() => onOpenLive(item.id)}
+                        aria-label={`View ${item.title}`}
+                      >
+                        <PublicPhotoPlaceholder />
+                      </button>
+                      <Badge tone={item.type.toLowerCase()}>
+                        {item.type}
+                      </Badge>
+                    </div>
+
+                    <button
+                      className="card-copy"
+                      onClick={() => onOpenLive(item.id)}
+                    >
+                      <div className="card-top">
+                        <span>
+                          {item.condition || "Condition not specified"}
+                        </span>
+                        <span>
+                          <Icon name="pin" size={15} />
+                          {item.location}
+                        </span>
+                      </div>
+                      <h3>{item.title}</h3>
+                      <p className="price">{item.displayPrice}</p>
+                      <p>{item.category}</p>
+                    </button>
+                  </article>
+                ))}
+              </div>
+
+              <p className="helper">
+                Showing matches from the latest 100 approved listings.
+              </p>
+            </>
+          )}
+        </section>
+      </div>
+    </main>
+  );
+}
+
+function LiveListingDetail({
+  listingId,
+  goBack,
+}: {
+  listingId: string;
+  goBack: () => void;
+}) {
+  const [item, setItem] = useState<PublicListing | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [reload, setReload] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      setLoading(true);
+      setError("");
+      setItem(null);
+
+      try {
+        const result = await fetchPublicMarketplace(listingId);
+        if (active) setItem(result.items[0] ?? null);
+      } catch (err) {
+        if (active) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Could not load this listing."
+          );
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    void load();
+
+    return () => {
+      active = false;
+    };
+  }, [listingId, reload]);
+
+  return (
+    <main className="detail-page section">
+      <button className="back-link" onClick={goBack}>
+        ← Back to listings
+      </button>
+
+      {loading ? (
+        <p role="status">Loading listing...</p>
+      ) : error ? (
+        <div className="empty-state">
+          <h2>Could not load listing</h2>
+          <p role="alert">{error}</p>
+          <Button onClick={() => setReload((value) => value + 1)}>
+            Try again
+          </Button>
+        </div>
+      ) : !item ? (
+        <div className="empty-state">
+          <h2>Listing unavailable</h2>
+          <p>
+            This listing may have been removed or is not publicly
+            available.
+          </p>
+          <Button onClick={goBack}>Browse listings</Button>
+        </div>
+      ) : (
+        <div className="detail-layout">
+          <section className="gallery" aria-label="Listing photo">
+            <PublicPhotoPlaceholder />
+          </section>
+
+          <section className="detail-copy">
+            <div className="detail-badges">
+              <Badge tone={item.type.toLowerCase()}>
+                {item.type}
+              </Badge>
+              <Badge tone="verified">Admin approved</Badge>
+            </div>
+
+            <h1>{item.title}</h1>
+            <p className="detail-price">{item.displayPrice}</p>
+
+            <div className="detail-meta">
+              <span>
+                <small>Condition</small>
+                <strong>{item.condition || "Not specified"}</strong>
+              </span>
+              <span>
+                <small>Category</small>
+                <strong>{item.category}</strong>
+              </span>
+              <span>
+                <small>Location</small>
+                <strong>{item.location}</strong>
+              </span>
+            </div>
+
+            <div className="description">
+              <h2>About this item</h2>
+              <p style={{ whiteSpace: "pre-wrap" }}>
+                {item.description?.trim() ||
+                  "No description provided."}
+              </p>
+            </div>
+
+            <div className="no-payment">
+              <strong>Requests are coming soon</strong>
+              <p>
+                Request submission is not available yet.
+              </p>
+            </div>
+          </section>
+        </div>
+      )}
+    </main>
+  );
 }
 
 function Detail({ item, onRequest, guestAction, goBack, navigate }: { item: typeof listings[number]; onRequest: () => void; guestAction: () => void; goBack: () => void; navigate: (p: Page, state?: Partial<RouteState>) => void }) {
@@ -2077,8 +2758,36 @@ export default function App() {
   const protectedAction = () => loggedIn ? setFlow(selected.type === "Rent" ? "rental" : "sale") : setSignIn(true);
   let pageContent: ReactNode;
   if (page === "home") pageContent = <Home navigate={navigate} openBrowse={openBrowse} openItem={openItem} />;
-  else if (page === "browse") pageContent = <Browse openItem={openItem} state={browseState} setState={setBrowseState} />;
-  else if (page === "detail") pageContent = <Detail item={selected} onRequest={protectedAction} guestAction={() => loggedIn ? demoFeedback("Item saved to your wishlist.") : setSignIn(true)} goBack={() => goBack("browse")} navigate={navigate} />;
+  else if (page === "browse") {
+    pageContent = (
+      <Browse
+        onOpenLive={(id) => navigate("detail", { listingId: id })}
+        state={browseState}
+        setState={setBrowseState}
+      />
+    );
+  }
+  else if (page === "detail") {
+    pageContent =
+      typeof route.listingId === "string" ? (
+        <LiveListingDetail
+          listingId={route.listingId}
+          goBack={() => goBack("browse")}
+        />
+      ) : (
+        <Detail
+          item={selected}
+          onRequest={protectedAction}
+          guestAction={() =>
+            loggedIn
+              ? demoFeedback("Item saved to your wishlist.")
+              : setSignIn(true)
+          }
+          goBack={() => goBack("browse")}
+          navigate={navigate}
+        />
+      );
+  }
   else if (page === "auth") pageContent = <AuthFlow mode={route.authMode ?? "register"} setMode={(authMode) => setRoute(current => ({ ...current, authMode }))} goBack={() => goBack("home")} onHome={() => navigate("home")} done={() => { setLoggedIn(true); navigate("dashboard", { dashboardSection: "Overview" }) }} />;
   else if (page === "dashboard") pageContent = (
     <Dashboard
