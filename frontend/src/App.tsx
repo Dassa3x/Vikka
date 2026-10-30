@@ -1661,7 +1661,7 @@ function ListingWizard({ close }: { close: () => void }) {
       active = false;
     };
   }, []);
-    if (submitted) {
+  if (submitted) {
     return (
       <main className="wizard-page">
         <div className="wizard-shell">
@@ -1727,7 +1727,7 @@ function ListingWizard({ close }: { close: () => void }) {
           <option value="CINEC Campus">CINEC Campus</option>
           <option value="Malabe">Malabe</option>
         </select>
-                <small>Never enter a permanent address or live GPS location.</small>
+        <small>Never enter a permanent address or live GPS location.</small>
       </label>
       <label>
         Description
@@ -1762,7 +1762,39 @@ function ListingWizard({ close }: { close: () => void }) {
     {step === 5 && <div className="review-layout"><div className="form-card">
       <h2>{title.trim() || "Untitled listing"}</h2>
       <p>{description.trim() || "No description added"}</p>
-    </div><div className="form-card"><h2>Ready for review</h2><SummaryRows rows={[["Type", type], ["Category", "Cameras"], ["Location", "CINEC Campus"], ["Daily price", "Rs. 750"], ["Images", "1 of 3"], ["Guarantees", String(guarantees.length)]]} /><div className="no-payment"><strong>Admin approval required</strong><p>Your listing will not be public until it passes the prohibited-item and safety review.</p></div><label className="check-row"><input type="checkbox" defaultChecked />I confirm this item follows the Terms and Prohibited Items policy.</label></div></div>}
+    </div><div className="form-card"><h2>Ready for review</h2><SummaryRows
+      rows={[
+        ["Type", type],
+        [
+          "Category",
+          categories.find((category) => String(category.id) === String(categoryId))
+            ?.name || "Not selected",
+        ],
+        ["Location", location || "Not selected"],
+        [
+          type === "Rent"
+            ? "Daily price"
+            : type === "Sell"
+              ? "Sale price"
+              : type === "Exchange"
+                ? "Optional cash amount"
+                : "Price",
+          type === "Donate"
+            ? "Free"
+            : price.trim()
+              ? `Rs. ${Number(price).toLocaleString("en-LK", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`
+              : "Not entered",
+        ],
+        ["Images", "Demo photo — upload not connected"],
+        [
+          "Guarantees",
+          String(guarantees.filter((g) => g.trim().length > 0).length),
+        ],
+      ]}
+    /><div className="no-payment"><strong>Admin approval required</strong><p>Your listing will not be public until it passes the prohibited-item and safety review.</p></div><label className="check-row"><input type="checkbox" defaultChecked />I confirm this item follows the Terms and Prohibited Items policy.</label></div></div>}
     <div className="wizard-actions"><Button variant="secondary" onClick={() => step === 1 ? close() : setStep(step - 1)}>Back</Button><Button onClick={() => step === 5 ? setSubmitted(true) : setStep(step + 1)}>{step === 5 ? "Submit for approval" : "Continue"} <Icon name="arrow" /></Button></div></div></main>;
 }
 
